@@ -1,0 +1,29 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Enforce AINative Studio branding and feature parity across the project.
+globs:
+  - "**/*"
+type: always
+---
+
+# AINative Studio Branding & Parity Rule
+
+- Replace all instances of `Void`, `Void Editor`, and `Glass Devtools, Inc.` with `AINative Studio` in code, UI, CLI, documentation, and metadata.
+- Update all logos, icons, splash screens, and visual assets to AINative Studio-provided PNGs.
+- Update documentation (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`) to reference AINative Studio.
+    - Add to LICENSE: "Forked from Void Editor, originally based on Visual Studio Code."
+- Remove or update all links to `voideditor.com`, Discord, and GitHub `voideditor`.
+- Update code comments and annotations:
+    - `// Forked from Void` → `// Forked from Void Editor by AINative Studio`
+    - `@voideditor` → `@ainativestudio`
+- Do **not** change any functional logic, paths, or module names unless branding-dependent.
+- Maintain 100% feature parity with the original Void Editor. No new features or regressions allowed.
+- All platform builds (macOS, Windows, Linux) must display correct AINative Studio branding and icons.
+- Final deliverable must have no visible or referenced use of "Void" or "Glass Devtools, Inc." remaining.
+
+@prd.md
+@dev_checklist.md
