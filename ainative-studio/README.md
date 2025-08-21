@@ -40,7 +40,7 @@ Use these convenient development scripts for easy setup and management:
 
 ## Contributing
 
-1. To get started working on AINative Studio, see [HOW_TO_CONTRIBUTE](https://github.com/AINative-Studio/AINativeStudio-IDE/blob/main/HOW_TO_CONTRIBUTE.md).
+1. To get started working on AINative Studio, see [HOW_TO_CONTRIBUTE](https://github.com/AINative-Studio/AINativeStudio-IDE/blob/main/ainative-studio/HOW_TO_CONTRIBUTE.md).
 
 
 ## Reference
