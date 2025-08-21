@@ -124,11 +124,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](ainative-studio/CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
-
-## 📄 Documentation
-
-For detailed documentation, please visit our [documentation site](https://docs.ainativestudio.com).
+Contributions are welcome! Please read our [Contributing Guide](https://github.com/AINative-Studio/AINativeStudio-IDE/blob/main/ainative-studio/HOW_TO_CONTRIBUTE.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## 📬 Contact
 
