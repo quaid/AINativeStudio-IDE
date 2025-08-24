@@ -1,0 +1,413 @@
+name: Build Linux x64 with AppImage
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-linux-x64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Configure Git
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            ainative-studio/package-lock.json
+            ainative-studio/build/package-lock.json
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libkrb5-dev
+      
+      - name: Install build dependencies
+        working-directory: ainative-studio/build
+        run: |
+          for i in {1..5}; do
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "npm ci in build/ failed too many times" >&2
+              exit 1
+            fi
+            echo "npm ci failed $i, trying again..."
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install dependencies
+        working-directory: ainative-studio
+        run: |
+          for i in {1..5}; do
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "npm ci failed too many times" >&2
+              exit 1
+            fi
+            echo "npm ci failed $i, trying again..."
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Cache node build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ainative-studio/node_modules/.cache
+            ainative-studio/extensions/*/node_modules/.cache
+          key: node-cache-${{ runner.os }}-${{ hashFiles('ainative-studio/package-lock.json') }}
+          restore-keys: |
+            node-cache-${{ runner.os }}-
+      
+      - name: Cache gulp cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gulp-cache
+          key: ${{ runner.os }}-gulp-${{ hashFiles('ainative-studio/package-lock.json', 'ainative-studio/build/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gulp-
+      
+      - name: Build React components
+        working-directory: ainative-studio
+        run: npm run buildreact
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+      
+      - name: Compile TypeScript
+        working-directory: ainative-studio
+        run: npm run gulp compile-build-without-mangling
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+          UV_THREADPOOL_SIZE: 64
+      
+      - name: Build extensions in parallel
+        working-directory: ainative-studio
+        run: |
+          # Build critical extensions first
+          npm run gulp compile-extension:configuration-editing &
+          npm run gulp compile-extension:css-language-features &
+          npm run gulp compile-extension:typescript-language-features &
+          npm run gulp compile-extension:git &
+          wait
+          
+          # Build remaining extensions in parallel batches
+          npm run gulp compile-extension:debug-auto-launch &
+          npm run gulp compile-extension:debug-server-ready &
+          npm run gulp compile-extension:emmet &
+          npm run gulp compile-extension:extension-editing &
+          wait
+          
+          npm run gulp compile-extension:git-base &
+          npm run gulp compile-extension:github &
+          npm run gulp compile-extension:github-authentication &
+          npm run gulp compile-extension:grunt &
+          wait
+          
+          npm run gulp compile-extension:gulp &
+          npm run gulp compile-extension:html-language-features &
+          npm run gulp compile-extension:ipynb &
+          npm run gulp compile-extension:jake &
+          wait
+          
+          npm run gulp compile-extension:json-language-features &
+          npm run gulp compile-extension:markdown-language-features &
+          npm run gulp compile-extension:markdown-math &
+          npm run gulp compile-extension:media-preview &
+          wait
+          
+          npm run gulp compile-extension:merge-conflict &
+          npm run gulp compile-extension:terminal-suggest &
+          npm run gulp compile-extension:microsoft-authentication &
+          npm run gulp compile-extension:notebook-renderers &
+          wait
+          
+          npm run gulp compile-extension:npm &
+          npm run gulp compile-extension:php-language-features &
+          npm run gulp compile-extension:references-view &
+          npm run gulp compile-extension:search-result &
+          wait
+          
+          npm run gulp compile-extension:simple-browser &
+          npm run gulp compile-extension:tunnel-forwarding &
+          npm run gulp compile-extension:vscode-api-tests &
+          npm run gulp compile-extension:vscode-colorize-tests &
+          wait
+          
+          # Finish remaining extensions
+          npm run gulp compile-extension:vscode-colorize-perf-tests || true
+          npm run gulp compile-extension:vscode-test-resolver || true
+          npm run gulp compile-extension:vscode-selfhost-test-provider || true
+          npm run gulp compile-extension:vscode-selfhost-import-aid || true
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+      
+      - name: Minify and package
+        working-directory: ainative-studio
+        run: |
+          npm run gulp minify-vscode
+          npm run gulp vscode-linux-x64-min-ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+          UV_THREADPOOL_SIZE: 64
+      
+      - name: Verify build output
+        run: |
+          if [ ! -d "VSCode-linux-x64" ]; then
+            echo "::error::Build output directory not found!"
+            echo "Contents of current directory:"
+            ls -la
+            echo "Contents of parent directory:"
+            ls -la ../
+            exit 1
+          fi
+      
+      - name: Create archive
+        run: |
+          if [ -d "VSCode-linux-x64" ]; then
+            cd VSCode-linux-x64
+            tar --warning=no-file-changed -czf ../ainative-studio-linux-x64.tar.gz . || true
+            cd ..
+          elif [ -d "../VSCode-linux-x64" ]; then
+            cd ../VSCode-linux-x64
+            tar --warning=no-file-changed -czf ainative-studio-linux-x64.tar.gz . || true
+            mv ainative-studio-linux-x64.tar.gz ../ainative-studio/
+          else
+            echo "::error::VSCode-linux-x64 directory not found in current or parent directory!"
+            exit 1
+          fi
+        working-directory: ainative-studio
+
+      - name: Download AppImage tools
+        run: |
+          wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+        working-directory: ainative-studio
+
+      - name: Create AppImage structure
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          
+          # Copy the application
+          if [ -d "VSCode-linux-x64" ]; then
+            cp -r VSCode-linux-x64/* AppDir/usr/bin/
+          elif [ -d "../VSCode-linux-x64" ]; then
+            cp -r ../VSCode-linux-x64/* AppDir/usr/bin/
+          fi
+          
+          # Create desktop entry
+          cat > AppDir/usr/share/applications/ainative-studio.desktop << 'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=AINative Studio
+          Comment=AI-powered code editor
+          Exec=code
+          Icon=ainative-studio
+          Categories=Development;IDE;
+          EOF
+          
+          # Copy logo.png from current directory as the icon
+          cp ./logo.png AppDir/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          
+          # Create AppRun script
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "${HERE}/usr/bin/code" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          
+          # Copy desktop file to root
+          cp AppDir/usr/share/applications/ainative-studio.desktop AppDir/
+          
+          # Copy logo to root for AppImage
+          cp ./logo.png AppDir/ainative-studio.png
+        working-directory: ainative-studio
+
+      - name: Build AppImage
+        run: |
+          ./appimagetool AppDir ainative-studio-linux-x64.AppImage
+        working-directory: ainative-studio
+
+      - name: Upload tar.gz artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-x64-tar
+          path: ainative-studio/ainative-studio-linux-x64.tar.gz
+          retention-days: 7
+
+      - name: Create DEB package
+        run: |
+          mkdir -p deb-package/DEBIAN
+          mkdir -p deb-package/opt/ainative-studio
+          mkdir -p deb-package/usr/bin
+          mkdir -p deb-package/usr/share/applications
+          mkdir -p deb-package/usr/share/icons/hicolor/256x256/apps
+          
+          # Copy application files
+          if [ -d "VSCode-linux-x64" ]; then
+            cp -r VSCode-linux-x64/* deb-package/opt/ainative-studio/
+          elif [ -d "../VSCode-linux-x64" ]; then
+            cp -r ../VSCode-linux-x64/* deb-package/opt/ainative-studio/
+          fi
+          
+          # Create symlink for command line access
+          echo '#!/bin/bash' > deb-package/usr/bin/ainative-studio
+          echo 'exec /opt/ainative-studio/code "$@"' >> deb-package/usr/bin/ainative-studio
+          chmod +x deb-package/usr/bin/ainative-studio
+          
+          # Copy desktop file and icon
+          cp ./logo.png deb-package/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          
+          cat > deb-package/usr/share/applications/ainative-studio.desktop << 'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=AINative Studio
+          Comment=AI-powered code editor
+          Exec=ainative-studio
+          Icon=ainative-studio
+          Categories=Development;IDE;
+          EOF
+          
+          # Create control file
+          cat > deb-package/DEBIAN/control << 'EOF'
+          Package: ainative-studio
+          Version: 1.0.0
+          Section: editors
+          Priority: optional
+          Architecture: amd64
+          Maintainer: AINative Studio Team <team@ainativestudio.com>
+          Description: AI-powered code editor
+           AINative Studio is an AI-powered code editor built on VS Code,
+           providing intelligent code completion and editing capabilities.
+          Depends: libnss3, libatk-bridge2.0-0, libxkbfile1, libsecret-1-0
+          EOF
+          
+          # Build DEB package
+          dpkg-deb --build deb-package ainative-studio-linux-x64.deb
+        working-directory: ainative-studio
+
+      - name: Create RPM package
+        run: |
+          # Install RPM build tools
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          
+          mkdir -p rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          
+          # Create tarball for RPM
+          mkdir -p ainative-studio-1.0.0
+          if [ -d "VSCode-linux-x64" ]; then
+            cp -r VSCode-linux-x64/* ainative-studio-1.0.0/
+          elif [ -d "../VSCode-linux-x64" ]; then
+            cp -r ../VSCode-linux-x64/* ainative-studio-1.0.0/
+          fi
+          tar -czf rpm-build/SOURCES/ainative-studio-1.0.0.tar.gz ainative-studio-1.0.0
+          cp ./logo.png rpm-build/SOURCES/
+          
+          # Create spec file
+          cat > rpm-build/SPECS/ainative-studio.spec << 'EOF'
+          Name:           ainative-studio
+          Version:        1.0.0
+          Release:        1%{?dist}
+          Summary:        AI-powered code editor
+          
+          License:        MIT
+          Source0:        %{name}-%{version}.tar.gz
+          Source1:        logo.png
+          
+          BuildArch:      x86_64
+          Requires:       nss, atk, libXkbfile, libsecret
+          
+          %description
+          AINative Studio is an AI-powered code editor built on VS Code,
+          providing intelligent code completion and editing capabilities.
+          
+          %prep
+          %setup -q
+          
+          %install
+          mkdir -p %{buildroot}/opt/ainative-studio
+          mkdir -p %{buildroot}/usr/bin
+          mkdir -p %{buildroot}/usr/share/applications
+          mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
+          
+          cp -r * %{buildroot}/opt/ainative-studio/
+          
+          # Create wrapper script
+          cat > %{buildroot}/usr/bin/ainative-studio << 'SCRIPT'
+          #!/bin/bash
+          exec /opt/ainative-studio/code "$@"
+          SCRIPT
+          chmod +x %{buildroot}/usr/bin/ainative-studio
+          
+          # Install icon and desktop file
+          cp %{SOURCE1} %{buildroot}/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          
+          cat > %{buildroot}/usr/share/applications/ainative-studio.desktop << 'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=AINative Studio
+          Comment=AI-powered code editor
+          Exec=ainative-studio
+          Icon=ainative-studio
+          Categories=Development;IDE;
+          DESKTOP
+          
+          %files
+          /opt/ainative-studio/*
+          /usr/bin/ainative-studio
+          /usr/share/applications/ainative-studio.desktop
+          /usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          
+          %changelog
+          * Wed Jan 01 2025 AINative Studio Team <team@ainativestudio.com> - 1.0.0-1
+          - Initial release
+          EOF
+          
+          # Build RPM
+          rpmbuild --define "_topdir $(pwd)/rpm-build" -ba rpm-build/SPECS/ainative-studio.spec
+          cp rpm-build/RPMS/x86_64/ainative-studio-*.rpm ./ainative-studio-linux-x64.rpm
+        working-directory: ainative-studio
+
+      - name: Upload tar.gz artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-x64-tar
+          path: ainative-studio/ainative-studio-linux-x64.tar.gz
+          retention-days: 7
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-x64-appimage
+          path: ainative-studio/ainative-studio-linux-x64.AppImage
+          retention-days: 7
+
+      - name: Upload DEB package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-x64-deb
+          path: ainative-studio/ainative-studio-linux-x64.deb
+          retention-days: 7
+
+      - name: Upload RPM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-x64-rpm
+          path: ainative-studio/ainative-studio-linux-x64.rpm
+          retention-days: 7
