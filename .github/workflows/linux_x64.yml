@@ -221,7 +221,7 @@ jobs:
           EOF
           
           # Copy logo from ai_native_studio_icons directory
-          cp ../ai_native_studio_icons/ai_native_studio_256x256.png AppDir/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          cp ./ai_native_studio_icons/ai_native_studio_256x256.png AppDir/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
           
           # Create AppRun script
           cat > AppDir/AppRun << 'EOF'
@@ -271,7 +271,7 @@ jobs:
           chmod +x deb-package/usr/bin/ainative-studio
           
           # Copy desktop file and icon
-          cp ../ai_native_studio_icons/ai_native_studio_256x256.png deb-package/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          cp ./ai_native_studio_icons/ai_native_studio_256x256.png deb-package/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
           
           cat > deb-package/usr/share/applications/ainative-studio.desktop << 'EOF'
           [Desktop Entry]
@@ -319,7 +319,7 @@ jobs:
           tar -czf rpm-build/SOURCES/ainative-studio-1.0.0.tar.gz ainative-studio-1.0.0
           
           # Copy logo from ai_native_studio_icons directory
-          cp ../ai_native_studio_icons/ai_native_studio_256x256.png rpm-build/SOURCES/logo.png
+          cp ./ai_native_studio_icons/ai_native_studio_256x256.png rpm-build/SOURCES/logo.png
           
           # Create spec file
           cat > rpm-build/SPECS/ainative-studio.spec << 'EOF'
