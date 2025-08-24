@@ -1,4 +1,4 @@
-name: Build Linux x64 with AppImage
+name: Build Linux x64 with AppImage (Fixed)
 
 on:
   workflow_dispatch:
