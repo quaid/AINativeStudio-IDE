@@ -68,7 +68,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Extracting build artifact..."
-          7z x ainative-studio-win32-x64.zip -o../VSCode-win32-x64 -y
+          7z x ainative-studio-win32-x64.zip -o"../VSCode-win32-x64" -y
           Write-Host "Build extracted successfully"
       
       - name: Install Inno Setup
