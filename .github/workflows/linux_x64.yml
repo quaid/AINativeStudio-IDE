@@ -236,7 +236,7 @@ jobs:
           cat > AppDir/AppRun << 'EOF'
           #!/bin/bash
           HERE="$(dirname "$(readlink -f "${0}")")"
-          exec "${HERE}/usr/bin/code" "$@"
+          exec "${HERE}/usr/bin/void" "$@"
           EOF
           chmod +x AppDir/AppRun
           
@@ -277,9 +277,9 @@ jobs:
             cp -r ../VSCode-linux-x64/* deb-package/opt/ainative-studio/
           fi
           
-          # Create symlink for command line access
+          # Create wrapper script for command line access
           echo '#!/bin/bash' > deb-package/usr/bin/ainative-studio
-          echo 'exec /opt/ainative-studio/code "$@"' >> deb-package/usr/bin/ainative-studio
+          echo 'exec /opt/ainative-studio/void "$@"' >> deb-package/usr/bin/ainative-studio
           chmod +x deb-package/usr/bin/ainative-studio
           
           # Copy desktop file and icon
@@ -365,7 +365,7 @@ jobs:
           # Create wrapper script
           cat > %{buildroot}/usr/bin/ainative-studio << 'SCRIPT'
           #!/bin/bash
-          exec /opt/ainative-studio/code "$@"
+          exec /opt/ainative-studio/void "$@"
           SCRIPT
           chmod +x %{buildroot}/usr/bin/ainative-studio
           
