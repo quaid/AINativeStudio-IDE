@@ -190,10 +190,19 @@ jobs:
           fi
         working-directory: ainative-studio
 
-      - name: Download AppImage tools
+      - name: Download and setup AppImage tools
         run: |
+          # Install FUSE for AppImage
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
+          
+          # Download AppImage tool
           wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
+          
+          # Extract AppImage tool to avoid FUSE issues in container
+          ./appimagetool --appimage-extract
+          mv squashfs-root appimagetool-extracted
         working-directory: ainative-studio
 
       - name: Create AppImage structure
@@ -240,7 +249,8 @@ jobs:
 
       - name: Build AppImage
         run: |
-          ./appimagetool AppDir ainative-studio-linux-x64.AppImage
+          # Use the extracted AppImage tool to avoid FUSE requirement
+          ./appimagetool-extracted/AppRun AppDir ainative-studio-linux-x64.AppImage
         working-directory: ainative-studio
 
       - name: Upload tar.gz artifact
