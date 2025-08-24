@@ -1,0 +1,155 @@
+name: Windows x64 Build & Package
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-windows-parallel-simple.yml
+    secrets: inherit
+
+  package:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            ainative-studio/package-lock.json
+            ainative-studio/build/package-lock.json
+      
+      - name: Install build dependencies
+        working-directory: ainative-studio/build
+        run: |
+          for /l %%i in (1,1,5) do (
+            npm ci && exit /b 0
+          )
+          echo "npm ci in build/ failed too many times"
+          exit /b 1
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install dependencies
+        working-directory: ainative-studio
+        run: |
+          for /l %%i in (1,1,5) do (
+            npm ci && exit /b 0
+          )
+          echo "npm ci failed too many times"
+          exit /b 1
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-win32-x64
+          path: ainative-studio/
+      
+      - name: Extract build
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Extracting build artifact..."
+          7z x ainative-studio-win32-x64.zip -o../VSCode-win32-x64 -y
+          Write-Host "Build extracted successfully"
+      
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          Write-Host "Downloading Inno Setup..."
+          $url = "https://jrsoftware.org/download.php/is.exe"
+          $output = "$env:TEMP\innosetup.exe"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Write-Host "Installing Inno Setup..."
+          Start-Process -FilePath $output -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+          Write-Host "Inno Setup installed successfully"
+      
+      - name: Build User Setup Installer
+        working-directory: ainative-studio
+        run: npm run gulp vscode-win32-x64-user-setup
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+      
+      - name: Build System Setup Installer
+        working-directory: ainative-studio
+        run: npm run gulp vscode-win32-x64-system-setup
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+      
+      - name: Find installer files
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Searching for installer files..."
+          $installers = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" -or $_.Name -like "*setup*" }
+          
+          if ($installers.Count -eq 0) {
+            Write-Host "Checking parent directory..."
+            $installers = Get-ChildItem -Path ../ -Recurse -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" -or $_.Name -like "*setup*" }
+          }
+          
+          Write-Host "Found installers:"
+          $installers | ForEach-Object {
+            Write-Host "  - $($_.FullName)"
+            # Copy to a consistent location for artifact upload
+            Copy-Item $_.FullName -Destination "." -Force
+          }
+          
+          # List files in current directory
+          Write-Host "`nFiles in current directory:"
+          Get-ChildItem -Filter "*.exe" | Format-Table Name, Length, LastWriteTime
+      
+      - name: Upload User Setup Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-win32-x64-user-setup
+          path: |
+            ainative-studio/*UserSetup*.exe
+            ainative-studio/*user-setup*.exe
+          if-no-files-found: warn
+          retention-days: 30
+      
+      - name: Upload System Setup Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-win32-x64-system-setup
+          path: |
+            ainative-studio/*SystemSetup*.exe
+            ainative-studio/*system-setup*.exe
+          if-no-files-found: warn
+          retention-days: 30
+      
+      - name: Upload installers to release
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $installers = Get-ChildItem -Path ainative-studio -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" -or $_.Name -like "*setup*" }
+          
+          foreach ($installer in $installers) {
+            Write-Host "Uploading $($installer.Name) to release..."
+            gh release upload ${{ github.event.release.tag_name }} $installer.FullName --clobber
+          }
