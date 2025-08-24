@@ -277,10 +277,15 @@ jobs:
             cp -r ../VSCode-linux-x64/* deb-package/opt/ainative-studio/
           fi
           
-          # Create wrapper script for command line access
+          # Create wrapper scripts for command line access
           echo '#!/bin/bash' > deb-package/usr/bin/ainative-studio
           echo 'exec /opt/ainative-studio/void "$@"' >> deb-package/usr/bin/ainative-studio
           chmod +x deb-package/usr/bin/ainative-studio
+          
+          # Create alias for ainativestudio command
+          echo '#!/bin/bash' > deb-package/usr/bin/ainativestudio
+          echo 'exec /opt/ainative-studio/void "$@"' >> deb-package/usr/bin/ainativestudio
+          chmod +x deb-package/usr/bin/ainativestudio
           
           # Copy desktop file and icon
           cp ./ai_native_studio_icons/ai_native_studio_256x256.png deb-package/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
@@ -362,12 +367,18 @@ jobs:
           
           cp -r * %{buildroot}/opt/ainative-studio/
           
-          # Create wrapper script
+          # Create wrapper scripts
           cat > %{buildroot}/usr/bin/ainative-studio << 'SCRIPT'
           #!/bin/bash
           exec /opt/ainative-studio/void "$@"
           SCRIPT
           chmod +x %{buildroot}/usr/bin/ainative-studio
+          
+          cat > %{buildroot}/usr/bin/ainativestudio << 'SCRIPT'
+          #!/bin/bash
+          exec /opt/ainative-studio/void "$@"
+          SCRIPT
+          chmod +x %{buildroot}/usr/bin/ainativestudio
           
           # Install icon and desktop file
           cp %{SOURCE1} %{buildroot}/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
@@ -385,6 +396,7 @@ jobs:
           %files
           /opt/ainative-studio/*
           /usr/bin/ainative-studio
+          /usr/bin/ainativestudio
           /usr/share/applications/ainative-studio.desktop
           /usr/share/icons/hicolor/256x256/apps/ainative-studio.png
           
