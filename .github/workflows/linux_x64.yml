@@ -249,9 +249,11 @@ jobs:
 
       - name: Build AppImage
         run: |
-          # Use the extracted AppImage tool to avoid FUSE requirement
-          ./appimagetool-extracted/AppRun AppDir ainative-studio-linux-x64.AppImage
+          # Use the extracted AppImage tool with correct architecture
+          ARCH=x86_64 ./appimagetool-extracted/AppRun AppDir ainative-studio-linux-x64.AppImage
         working-directory: ainative-studio
+        env:
+          ARCH: x86_64
 
       - name: Upload tar.gz artifact
         uses: actions/upload-artifact@v4
