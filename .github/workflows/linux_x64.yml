@@ -220,8 +220,8 @@ jobs:
           Categories=Development;IDE;
           EOF
           
-          # Copy logo.png from current directory as the icon
-          cp ./logo.png AppDir/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          # Copy logo from ai_native_studio_icons directory
+          cp ../ai_native_studio_icons/ai_native_studio_256x256.png AppDir/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
           
           # Create AppRun script
           cat > AppDir/AppRun << 'EOF'
@@ -235,7 +235,7 @@ jobs:
           cp AppDir/usr/share/applications/ainative-studio.desktop AppDir/
           
           # Copy logo to root for AppImage
-          cp ./logo.png AppDir/ainative-studio.png
+          cp AppDir/usr/share/icons/hicolor/256x256/apps/ainative-studio.png AppDir/ainative-studio.png
         working-directory: ainative-studio
 
       - name: Build AppImage
@@ -271,7 +271,7 @@ jobs:
           chmod +x deb-package/usr/bin/ainative-studio
           
           # Copy desktop file and icon
-          cp ./logo.png deb-package/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          cp ../ai_native_studio_icons/ai_native_studio_256x256.png deb-package/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
           
           cat > deb-package/usr/share/applications/ainative-studio.desktop << 'EOF'
           [Desktop Entry]
@@ -317,7 +317,9 @@ jobs:
             cp -r ../VSCode-linux-x64/* ainative-studio-1.0.0/
           fi
           tar -czf rpm-build/SOURCES/ainative-studio-1.0.0.tar.gz ainative-studio-1.0.0
-          cp ./logo.png rpm-build/SOURCES/
+          
+          # Copy logo from ai_native_studio_icons directory
+          cp ../ai_native_studio_icons/ai_native_studio_256x256.png rpm-build/SOURCES/logo.png
           
           # Create spec file
           cat > rpm-build/SPECS/ainative-studio.spec << 'EOF'
