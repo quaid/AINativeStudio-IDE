@@ -64,12 +64,17 @@ jobs:
           path: ainative-studio/
       
       - name: Extract build
-        working-directory: ainative-studio
         shell: pwsh
         run: |
           Write-Host "Extracting build artifact..."
-          7z x ainative-studio-win32-x64.zip -o"../VSCode-win32-x64" -y
+          # Extract to the root of the repository where Inno Setup expects it
+          7z x ainative-studio/ainative-studio-win32-x64.zip -o"VSCode-win32-x64" -y
           Write-Host "Build extracted successfully"
+          Write-Host "Verifying extraction location..."
+          Get-ChildItem -Path . -Directory | Format-Table Name
+          if (Test-Path VSCode-win32-x64) {
+            Write-Host "✅ VSCode-win32-x64 found in correct location"
+          }
       
       - name: Install Inno Setup
         shell: pwsh
