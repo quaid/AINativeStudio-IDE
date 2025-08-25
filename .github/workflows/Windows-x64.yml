@@ -75,6 +75,14 @@ jobs:
           if (Test-Path VSCode-win32-x64) {
             Write-Host "✅ VSCode-win32-x64 found in correct location"
           }
+          
+          # Create empty tools folder if it doesn't exist (required by Inno Setup)
+          if (-not (Test-Path VSCode-win32-x64/tools)) {
+            Write-Host "Creating tools folder for Inno Setup..."
+            New-Item -ItemType Directory -Path VSCode-win32-x64/tools -Force
+            # Create a dummy file to ensure the folder is not empty
+            New-Item -ItemType File -Path VSCode-win32-x64/tools/.placeholder -Force
+          }
       
       - name: Install Inno Setup
         shell: pwsh
