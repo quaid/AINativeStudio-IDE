@@ -349,6 +349,11 @@ jobs:
           BuildArch:      noarch
           Requires:       nss, atk, libXkbfile, libsecret
           
+          # Disable binary stripping for cross-architecture builds
+          %global __os_install_post %{nil}
+          %global _enable_debug_package 0
+          %global debug_package %{nil}
+          
           %description
           AINative Studio is an AI-powered code editor built on VS Code,
           providing intelligent code completion and editing capabilities.
