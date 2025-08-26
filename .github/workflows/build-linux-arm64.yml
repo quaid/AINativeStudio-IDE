@@ -346,7 +346,7 @@ jobs:
           Source0:        %{name}-%{version}.tar.gz
           Source1:        logo.png
           
-          BuildArch:      noarch
+          BuildArch:      aarch64
           Requires:       nss, atk, libXkbfile, libsecret
           
           # Disable binary stripping for cross-architecture builds
@@ -408,8 +408,8 @@ jobs:
           EOF
           
           # Build RPM
-          rpmbuild --define "_topdir $(pwd)/rpm-build" -ba rpm-build/SPECS/ainative-studio.spec
-          cp rpm-build/RPMS/noarch/ainative-studio-*.rpm ./ainative-studio-linux-arm64.rpm
+          rpmbuild --define "_topdir $(pwd)/rpm-build" --target aarch64 -ba rpm-build/SPECS/ainative-studio.spec
+          cp rpm-build/RPMS/aarch64/ainative-studio-*.rpm ./ainative-studio-linux-arm64.rpm
       
       - name: Upload tar.gz artifact
         uses: actions/upload-artifact@v4
