@@ -1,8 +1,10 @@
-name: Build Linux ARM64 (Simple Parallel)
+name: Linux ARM64 Build & Package
 
 on:
   workflow_dispatch:
   workflow_call:
+  release:
+    types: [created]
 
 jobs:
   # Build core components in parallel
@@ -197,3 +199,247 @@ jobs:
           name: ainative-studio-linux-arm64
           path: ainative-studio/ainative-studio-linux-arm64.tar.gz
           retention-days: 7
+
+  package:
+    needs: build-core
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            ainative-studio/package-lock.json
+            ainative-studio/build/package-lock.json
+      
+      - name: Install build dependencies
+        working-directory: ainative-studio/build
+        run: |
+          for i in {1..5}; do
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "npm ci in build/ failed too many times" >&2
+              exit 1
+            fi
+            echo "npm ci failed $i, trying again..."
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install dependencies
+        working-directory: ainative-studio
+        run: |
+          for i in {1..5}; do
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "npm ci failed too many times" >&2
+              exit 1
+            fi
+            echo "npm ci failed $i, trying again..."
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-linux-arm64
+          path: ainative-studio/
+      
+      - name: Extract build
+        working-directory: ainative-studio
+        run: |
+          echo "Extracting build artifact..."
+          tar -xzf ainative-studio-linux-arm64.tar.gz
+          mv VSCode-linux-arm64 ../
+          echo "Build extracted successfully"
+          ls -la ../VSCode-linux-arm64/
+      
+      - name: Create DEB package
+        working-directory: ainative-studio
+        run: |
+          mkdir -p deb-package/DEBIAN
+          mkdir -p deb-package/opt/ainative-studio
+          mkdir -p deb-package/usr/bin
+          mkdir -p deb-package/usr/share/applications
+          mkdir -p deb-package/usr/share/icons/hicolor/256x256/apps
+          
+          # Copy application files
+          if [ -d "../VSCode-linux-arm64" ]; then
+            cp -r ../VSCode-linux-arm64/* deb-package/opt/ainative-studio/
+          fi
+          
+          # Create wrapper scripts for command line access
+          echo '#!/bin/bash' > deb-package/usr/bin/ainative-studio
+          echo 'exec /opt/ainative-studio/void "$@"' >> deb-package/usr/bin/ainative-studio
+          chmod +x deb-package/usr/bin/ainative-studio
+          
+          # Create alias for ainativestudio command
+          echo '#!/bin/bash' > deb-package/usr/bin/ainativestudio
+          echo 'exec /opt/ainative-studio/void "$@"' >> deb-package/usr/bin/ainativestudio
+          chmod +x deb-package/usr/bin/ainativestudio
+          
+          # Copy desktop file and icon
+          cp ./ai_native_studio_icons/ai_native_studio_256x256.png deb-package/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          
+          cat > deb-package/usr/share/applications/ainative-studio.desktop << 'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=AINative Studio
+          Comment=AI-powered code editor
+          Exec=ainative-studio
+          Icon=ainative-studio
+          Categories=Development;IDE;
+          EOF
+          
+          # Create control file
+          cat > deb-package/DEBIAN/control << 'EOF'
+          Package: ainative-studio
+          Version: 1.0.0
+          Section: editors
+          Priority: optional
+          Architecture: arm64
+          Maintainer: AINative Studio Team <team@ainativestudio.com>
+          Description: AI-powered code editor
+           AINative Studio is an AI-powered code editor built on VS Code,
+           providing intelligent code completion and editing capabilities.
+          Depends: libnss3, libatk-bridge2.0-0, libxkbfile1, libsecret-1-0
+          EOF
+          
+          # Build DEB package
+          dpkg-deb --build deb-package ainative-studio-linux-arm64.deb
+      
+      - name: Create RPM package
+        working-directory: ainative-studio
+        run: |
+          # Install RPM build tools
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          
+          mkdir -p rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          
+          # Create tarball for RPM
+          mkdir -p ainative-studio-1.0.0
+          if [ -d "../VSCode-linux-arm64" ]; then
+            cp -r ../VSCode-linux-arm64/* ainative-studio-1.0.0/
+          fi
+          tar -czf rpm-build/SOURCES/ainative-studio-1.0.0.tar.gz ainative-studio-1.0.0
+          
+          # Copy logo from ai_native_studio_icons directory
+          cp ./ai_native_studio_icons/ai_native_studio_256x256.png rpm-build/SOURCES/logo.png
+          
+          # Create spec file
+          cat > rpm-build/SPECS/ainative-studio.spec << 'EOF'
+          Name:           ainative-studio
+          Version:        1.0.0
+          Release:        1%{?dist}
+          Summary:        AI-powered code editor
+          
+          License:        MIT
+          Source0:        %{name}-%{version}.tar.gz
+          Source1:        logo.png
+          
+          BuildArch:      aarch64
+          Requires:       nss, atk, libXkbfile, libsecret
+          
+          %description
+          AINative Studio is an AI-powered code editor built on VS Code,
+          providing intelligent code completion and editing capabilities.
+          
+          %prep
+          %setup -q
+          
+          %install
+          mkdir -p %{buildroot}/opt/ainative-studio
+          mkdir -p %{buildroot}/usr/bin
+          mkdir -p %{buildroot}/usr/share/applications
+          mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
+          
+          cp -r * %{buildroot}/opt/ainative-studio/
+          
+          # Create wrapper scripts
+          cat > %{buildroot}/usr/bin/ainative-studio << 'SCRIPT'
+          #!/bin/bash
+          exec /opt/ainative-studio/void "$@"
+          SCRIPT
+          chmod +x %{buildroot}/usr/bin/ainative-studio
+          
+          cat > %{buildroot}/usr/bin/ainativestudio << 'SCRIPT'
+          #!/bin/bash
+          exec /opt/ainative-studio/void "$@"
+          SCRIPT
+          chmod +x %{buildroot}/usr/bin/ainativestudio
+          
+          # Install icon and desktop file
+          cp %{SOURCE1} %{buildroot}/usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          
+          cat > %{buildroot}/usr/share/applications/ainative-studio.desktop << 'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=AINative Studio
+          Comment=AI-powered code editor
+          Exec=ainative-studio
+          Icon=ainative-studio
+          Categories=Development;IDE;
+          DESKTOP
+          
+          %files
+          /opt/ainative-studio/*
+          /usr/bin/ainative-studio
+          /usr/bin/ainativestudio
+          /usr/share/applications/ainative-studio.desktop
+          /usr/share/icons/hicolor/256x256/apps/ainative-studio.png
+          
+          %changelog
+          * Wed Jan 01 2025 AINative Studio Team <team@ainativestudio.com> - 1.0.0-1
+          - Initial release
+          EOF
+          
+          # Build RPM
+          rpmbuild --define "_topdir $(pwd)/rpm-build" -ba rpm-build/SPECS/ainative-studio.spec
+          cp rpm-build/RPMS/aarch64/ainative-studio-*.rpm ./ainative-studio-linux-arm64.rpm
+      
+      - name: Upload tar.gz artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-arm64-tar
+          path: ainative-studio/ainative-studio-linux-arm64.tar.gz
+          retention-days: 30
+      
+      - name: Upload DEB package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-arm64-deb
+          path: ainative-studio/ainative-studio-linux-arm64.deb
+          retention-days: 30
+      
+      - name: Upload RPM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-linux-arm64-rpm
+          path: ainative-studio/ainative-studio-linux-arm64.rpm
+          retention-days: 30
+      
+      - name: Upload packages to release
+        if: github.event_name == 'release'
+        working-directory: ainative-studio
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Uploading Linux ARM64 packages to release..."
+          if [ -f "ainative-studio-linux-arm64.tar.gz" ]; then
+            gh release upload ${{ github.event.release.tag_name }} ainative-studio-linux-arm64.tar.gz --clobber
+          fi
+          if [ -f "ainative-studio-linux-arm64.deb" ]; then
+            gh release upload ${{ github.event.release.tag_name }} ainative-studio-linux-arm64.deb --clobber
+          fi
+          if [ -f "ainative-studio-linux-arm64.rpm" ]; then
+            gh release upload ${{ github.event.release.tag_name }} ainative-studio-linux-arm64.rpm --clobber
+          fi
