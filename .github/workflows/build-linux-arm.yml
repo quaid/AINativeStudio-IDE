@@ -346,7 +346,7 @@ jobs:
           Source0:        %{name}-%{version}.tar.gz
           Source1:        logo.png
           
-          BuildArch:      armv7hl
+          BuildArch:      noarch
           Requires:       nss, atk, libXkbfile, libsecret
           
           %description
@@ -404,7 +404,7 @@ jobs:
           
           # Build RPM
           rpmbuild --define "_topdir $(pwd)/rpm-build" -ba rpm-build/SPECS/ainative-studio.spec
-          cp rpm-build/RPMS/armv7hl/ainative-studio-*.rpm ./ainative-studio-linux-armhf.rpm
+          cp rpm-build/RPMS/noarch/ainative-studio-*.rpm ./ainative-studio-linux-armhf.rpm
       
       - name: Upload tar.gz artifact
         uses: actions/upload-artifact@v4
