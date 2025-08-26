@@ -260,8 +260,8 @@ jobs:
         working-directory: ainative-studio
         run: |
           echo "Extracting build artifact..."
-          tar -xzf ainative-studio-linux-arm64.tar.gz
-          mv VSCode-linux-arm64 ../
+          mkdir -p ../VSCode-linux-arm64
+          tar -xzf ainative-studio-linux-arm64.tar.gz -C ../VSCode-linux-arm64
           echo "Build extracted successfully"
           ls -la ../VSCode-linux-arm64/
       
