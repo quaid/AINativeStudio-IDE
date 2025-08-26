@@ -1,0 +1,184 @@
+name: Release All Successful Builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag for the release (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_name:
+        description: 'Release name (leave empty to use version tag)'
+        required: false
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: false
+        type: string
+        default: 'Release of AINative Studio IDE with all available platform builds'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  gather-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find latest successful builds
+        id: find-builds
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            // Define all build workflows to check (corrected file names and artifacts)
+            const workflows = [
+              { file: 'build-linux-parallel-simple.yml', artifact: 'ainative-studio-linux-x64' },
+              { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf' },  // ARM 32-bit uses 'armhf'
+              { file: 'build-linux-arm64.yml', artifact: 'ainative-studio-linux-arm64' },
+              { file: 'build-windows-parallel-simple.yml', artifact: 'ainative-studio-win32-x64' },
+              { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64' },
+              { file: 'build-macos-x64-simple.yml', artifact: 'ainative-studio-darwin-x64' },
+              { file: 'build-macos-arm64-simple.yml', artifact: 'ainative-studio-darwin-arm64' }
+            ];
+            
+            const successfulRuns = [];
+            
+            for (const workflow of workflows) {
+              try {
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner,
+                  repo,
+                  workflow_id: workflow.file,
+                  status: 'success',
+                  per_page: 1
+                });
+                
+                if (runs.data.workflow_runs.length > 0) {
+                  const run = runs.data.workflow_runs[0];
+                  successfulRuns.push({
+                    workflow: workflow.file,
+                    artifact: workflow.artifact,
+                    runId: run.id,
+                    sha: run.head_sha.substring(0, 7),
+                    date: run.created_at
+                  });
+                  console.log(`✅ Found successful run for ${workflow.file}: #${run.id}`);
+                } else {
+                  console.log(`⚠️ No successful runs found for ${workflow.file}`);
+                }
+              } catch (error) {
+                console.log(`⚠️ Workflow ${workflow.file} not found or error: ${error.message}`);
+              }
+            }
+            
+            // Save run IDs for later steps
+            core.setOutput('runs', JSON.stringify(successfulRuns));
+            
+            // Create summary
+            let summary = `Found ${successfulRuns.length} successful builds:\n`;
+            successfulRuns.forEach(run => {
+              summary += `- ${run.artifact} (run #${run.runId})\n`;
+            });
+            console.log(summary);
+            
+            return successfulRuns;
+
+      - name: Download all successful artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runs = JSON.parse('${{ steps.find-builds.outputs.runs }}');
+            
+            for (const run of runs) {
+              console.log(`Downloading ${run.artifact} from run #${run.runId}...`);
+              
+              try {
+                // Use GitHub CLI to download artifacts
+                await exec.exec('gh', [
+                  'run', 'download', run.runId.toString(),
+                  '-n', run.artifact,
+                  '-D', `./artifacts/${run.artifact}`
+                ], {
+                  env: {
+                    ...process.env,
+                    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+                  }
+                });
+                
+                console.log(`✅ Downloaded ${run.artifact}`);
+              } catch (error) {
+                console.log(`⚠️ Failed to download ${run.artifact}: ${error.message}`);
+              }
+            }
+
+      - name: List downloaded artifacts
+        run: |
+          echo "=== Downloaded Artifacts ==="
+          if [ -d "./artifacts" ]; then
+            find ./artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) | while read file; do
+              echo "Found: $file"
+              ls -lh "$file"
+            done
+          else
+            echo "No artifacts found"
+          fi
+
+      - name: Generate release body
+        id: release-body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runs = JSON.parse('${{ steps.find-builds.outputs.runs }}');
+            
+            let body = `${{ inputs.release_notes }}\n\n`;
+            body += `## Available Platform Builds\n\n`;
+            
+            const platforms = {
+              'linux-x64': '🐧 Linux x64',
+              'linux-armhf': '🐧 Linux ARM (32-bit)',
+              'linux-arm64': '🐧 Linux ARM64',
+              'win32-x64': '🪟 Windows x64',
+              'win32-arm64': '🪟 Windows ARM64',
+              'darwin-x64': '🍎 macOS Intel',
+              'darwin-arm64': '🍎 macOS Apple Silicon'
+            };
+            
+            runs.forEach(run => {
+              const platform = run.artifact.replace('ainative-studio-', '');
+              const platformName = platforms[platform] || platform;
+              body += `- **${platformName}**: Build #${run.runId} (${run.sha})\n`;
+            });
+            
+            body += `\n## Installation\n`;
+            body += `1. Download the appropriate archive for your platform\n`;
+            body += `2. Extract the archive\n`;
+            body += `3. Run the \`ainative-studio\` executable\n`;
+            
+            core.setOutput('body', body);
+            return body;
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.version_tag }}
+          name: ${{ inputs.release_name || inputs.version_tag }}
+          body: ${{ steps.release-body.outputs.body }}
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+          files: |
+            ./artifacts/**/*.tar.gz
+            ./artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
