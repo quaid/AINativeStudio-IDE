@@ -186,3 +186,84 @@ jobs:
           name: ainative-studio-darwin-x64
           path: ainative-studio/ainative-studio-darwin-x64.tar.gz
           retention-days: 7
+
+  package:
+    needs: build-macos-x64
+    runs-on: macos-13
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64
+          path: ainative-studio/
+      
+      - name: Extract build
+        working-directory: ainative-studio
+        run: |
+          echo "Extracting build artifact..."
+          tar -xzf ainative-studio-darwin-x64.tar.gz -C ../
+          mv ../Void.app ../AINativeStudio.app 2>/dev/null || true
+          echo "Build extracted successfully"
+          ls -la ../
+      
+      - name: Create ZIP archive
+        run: |
+          echo "Creating ZIP archive..."
+          if [ -d "../AINativeStudio.app" ]; then
+            cd ..
+            zip -r -y ainative-studio/AINativeStudio-darwin-x64.zip AINativeStudio.app
+          elif [ -d "../Void.app" ]; then
+            cd ..
+            # Rename app bundle
+            mv Void.app AINativeStudio.app
+            zip -r -y ainative-studio/AINativeStudio-darwin-x64.zip AINativeStudio.app
+          fi
+          echo "ZIP archive created"
+      
+      - name: Create DMG
+        run: |
+          echo "Creating DMG..."
+          
+          # Create a temporary directory for DMG contents
+          mkdir -p dmg-temp
+          
+          # Copy the app bundle
+          if [ -d "../AINativeStudio.app" ]; then
+            cp -R ../AINativeStudio.app dmg-temp/
+          fi
+          
+          # Create Applications symlink
+          ln -s /Applications dmg-temp/Applications
+          
+          # Create DMG with proper volume name
+          hdiutil create -volname "AINative Studio" \
+                        -srcfolder dmg-temp \
+                        -ov -format UDZO \
+                        AINativeStudio-darwin-x64.dmg
+          
+          # Clean up
+          rm -rf dmg-temp
+          
+          echo "DMG created successfully"
+        working-directory: ainative-studio
+      
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64-zip
+          path: ainative-studio/AINativeStudio-darwin-x64.zip
+          retention-days: 30
+      
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64-dmg
+          path: ainative-studio/AINativeStudio-darwin-x64.dmg
+          retention-days: 30
+      
