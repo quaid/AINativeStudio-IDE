@@ -162,12 +162,30 @@ jobs:
           }
       
       - name: Create archive
+        working-directory: ainative-studio
         shell: pwsh
         run: |
           Write-Host "Creating archive from VSCode-win32-x64..."
-          cd ../VSCode-win32-x64
-          7z a -tzip ../ainative-studio/ainative-studio-win32-x64.zip .
-          cd ../ainative-studio
+          Write-Host "Current directory: $(Get-Location)"
+          
+          if (Test-Path VSCode-win32-x64) {
+            Write-Host "Found VSCode-win32-x64 in current directory"
+            Set-Location VSCode-win32-x64
+            7z a -tzip ../ainative-studio-win32-x64.zip .
+            Set-Location ..
+          } elseif (Test-Path ../VSCode-win32-x64) {
+            Write-Host "Found VSCode-win32-x64 in parent directory"
+            Set-Location ../VSCode-win32-x64
+            7z a -tzip ../ainative-studio/ainative-studio-win32-x64.zip .
+            Set-Location ../ainative-studio
+          } else {
+            Write-Host "❌ VSCode-win32-x64 directory not found!"
+            Write-Host "Contents of current directory:"
+            Get-ChildItem -Force | Format-Table Name
+            Write-Host "Contents of parent directory:"
+            Get-ChildItem -Path ../ -Force | Format-Table Name
+            exit 1
+          }
           Write-Host "Created archive: ainative-studio-win32-x64.zip"
           
       - name: Upload build artifact
