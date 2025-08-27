@@ -15,7 +15,7 @@ on:
         description: 'Release notes'
         required: false
         type: string
-        default: 'Release of AINative Studio IDE with all available platform builds'
+        default: 'Release of AINative Studio IDE with latest working builds from all platforms'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -42,12 +42,12 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             
-            // Define all build workflows to check (corrected file names and artifacts)
+            // Define all build workflows to check (only existing working workflows)
             const workflows = [
-              { file: 'build-linux-parallel-simple.yml', artifact: 'ainative-studio-linux-x64' },
+              { file: 'linux_x64.yml', artifact: 'ainative-studio-linux-x64-tar' },
               { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf' },  // ARM 32-bit uses 'armhf'
               { file: 'build-linux-arm64.yml', artifact: 'ainative-studio-linux-arm64' },
-              { file: 'build-windows-parallel-simple.yml', artifact: 'ainative-studio-win32-x64' },
+              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64' },  // New combined Windows workflow
               { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64' },
               { file: 'build-macos-x64-simple.yml', artifact: 'ainative-studio-darwin-x64' },
               { file: 'build-macos-arm64-simple.yml', artifact: 'ainative-studio-darwin-arm64' }
@@ -164,7 +164,11 @@ jobs:
             body += `\n## Installation\n`;
             body += `1. Download the appropriate archive for your platform\n`;
             body += `2. Extract the archive\n`;
-            body += `3. Run the \`ainative-studio\` executable\n`;
+            body += `3. Run the \`ainative-studio\` executable\n\n`;
+            body += `## Release Information\n`;
+            body += `This release contains the latest successful builds from each platform workflow. `;
+            body += `Each build represents the most recent working version for that platform.\n\n`;
+            body += `Total platforms in this release: ${runs.length}\n`;
             
             core.setOutput('body', body);
             return body;
