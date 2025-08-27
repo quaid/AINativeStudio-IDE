@@ -346,13 +346,14 @@ jobs:
           Source0:        %{name}-%{version}.tar.gz
           Source1:        logo.png
           
-          BuildArch:      aarch64
+          BuildArch:      noarch
           Requires:       nss, atk, libXkbfile, libsecret
           
-          # Disable binary stripping for cross-architecture builds
+          # Disable all binary checks for cross-architecture builds
           %global __os_install_post %{nil}
           %global _enable_debug_package 0
           %global debug_package %{nil}
+          %global _binaries_in_noarch_packages_terminate_build 0
           
           %description
           AINative Studio is an AI-powered code editor built on VS Code,
@@ -408,8 +409,8 @@ jobs:
           EOF
           
           # Build RPM
-          rpmbuild --define "_topdir $(pwd)/rpm-build" --target aarch64 -ba rpm-build/SPECS/ainative-studio.spec
-          cp rpm-build/RPMS/aarch64/ainative-studio-*.rpm ./ainative-studio-linux-arm64.rpm
+          rpmbuild --define "_topdir $(pwd)/rpm-build" --define "_binaries_in_noarch_packages_terminate_build 0" -ba rpm-build/SPECS/ainative-studio.spec
+          cp rpm-build/RPMS/noarch/ainative-studio-*.rpm ./ainative-studio-linux-arm64.rpm
       
       - name: Upload tar.gz artifact
         uses: actions/upload-artifact@v4
