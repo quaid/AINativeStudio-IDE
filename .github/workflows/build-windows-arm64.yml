@@ -299,8 +299,7 @@ jobs:
         with:
           name: ainative-studio-win32-arm64-user-setup
           path: |
-            ainative-studio/*UserSetup*.exe
-            ainative-studio/*user-setup*.exe
+            .build/win32-arm64/user-setup/VSCodeSetup.exe
           if-no-files-found: warn
           retention-days: 30
       
@@ -309,8 +308,7 @@ jobs:
         with:
           name: ainative-studio-win32-arm64-system-setup
           path: |
-            ainative-studio/*SystemSetup*.exe
-            ainative-studio/*system-setup*.exe
+            .build/win32-arm64/system-setup/VSCodeSetup.exe
           if-no-files-found: warn
           retention-days: 30
       
