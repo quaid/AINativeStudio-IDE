@@ -1,4 +1,4 @@
-name: Windows x64 Complete Build & Package
+name: Windows x64 Build & Package
 
 on:
   push:
@@ -10,9 +10,9 @@ on:
     types: [created]
 
 jobs:
-  build-and-package:
+  build:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 40
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -194,8 +194,57 @@ jobs:
           name: ainative-studio-win32-x64
           path: ainative-studio/ainative-studio-win32-x64.zip
           retention-days: 7
+
+  package:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
-      # ===== PACKAGING SECTION (from Windows-x64.yml) =====
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            ainative-studio/package-lock.json
+            ainative-studio/build/package-lock.json
+      
+      - name: Install build dependencies
+        working-directory: ainative-studio/build
+        run: |
+          for /l %%i in (1,1,5) do (
+            npm ci && exit /b 0
+          )
+          echo "npm ci in build/ failed too many times"
+          exit /b 1
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install dependencies
+        working-directory: ainative-studio
+        run: |
+          for /l %%i in (1,1,5) do (
+            npm ci && exit /b 0
+          )
+          echo "npm ci failed too many times"
+          exit /b 1
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-win32-x64
+          path: ainative-studio/
+      
+      # ===== PACKAGING SECTION =====
       
       - name: Extract build for packaging
         shell: pwsh
