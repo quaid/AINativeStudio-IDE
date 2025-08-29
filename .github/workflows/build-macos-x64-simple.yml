@@ -226,6 +226,10 @@ jobs:
           fi
           echo "ZIP archive created"
       
+      - name: Install Python dependencies for DMG creation
+        run: |
+          pip3 install Pillow
+      
       - name: Create DMG with custom background
         run: |
           echo "Creating DMG with custom background..."
