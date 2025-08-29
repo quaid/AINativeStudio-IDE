@@ -44,42 +44,81 @@ jobs:
             
             // Define all build workflows to check (only existing working workflows)
             const workflows = [
+              // Linux x64 - multiple package types
               { file: 'linux_x64.yml', artifact: 'ainative-studio-linux-x64-tar' },
-              { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf' },  // ARM 32-bit uses 'armhf'
-              { file: 'build-linux-arm64.yml', artifact: 'ainative-studio-linux-arm64' },
-              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64' },  // New combined Windows workflow
+              { file: 'linux_x64.yml', artifact: 'ainative-studio-linux-x64-deb' },
+              { file: 'linux_x64.yml', artifact: 'ainative-studio-linux-x64-rpm' },
+              { file: 'linux_x64.yml', artifact: 'ainative-studio-linux-x64-appimage' },
+              
+              // Linux ARM64 - multiple package types
+              { file: 'build-linux-arm64.yml', artifact: 'ainative-studio-linux-arm64-tar' },
+              { file: 'build-linux-arm64.yml', artifact: 'ainative-studio-linux-arm64-deb' },
+              { file: 'build-linux-arm64.yml', artifact: 'ainative-studio-linux-arm64-rpm' },
+              
+              // Linux ARM - multiple package types
+              { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf-tar' },
+              { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf-deb' },
+              { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf-rpm' },
+              
+              // Windows x64 - zip + installers
+              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64' },
+              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64-user-setup' },
+              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64-system-setup' },
+              
+              // Windows ARM64 - zip + installers
               { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64' },
-              { file: 'build-macos-x64-simple.yml', artifact: 'ainative-studio-darwin-x64' },
-              { file: 'build-macos-arm64-simple.yml', artifact: 'ainative-studio-darwin-arm64' }
+              { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64-user-setup' },
+              { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64-system-setup' },
+              
+              // macOS x64 - zip + dmg
+              { file: 'build-macos-x64-simple.yml', artifact: 'ainative-studio-darwin-x64-zip' },
+              { file: 'build-macos-x64-simple.yml', artifact: 'ainative-studio-darwin-x64-dmg' },
+              
+              // macOS ARM64 - zip + dmg
+              { file: 'build-macos-arm64-simple.yml', artifact: 'ainative-studio-darwin-arm64-zip' },
+              { file: 'build-macos-arm64-simple.yml', artifact: 'ainative-studio-darwin-arm64-dmg' }
             ];
             
             const successfulRuns = [];
             
-            for (const workflow of workflows) {
+            // Group workflows by file to avoid duplicates
+            const workflowGroups = {};
+            workflows.forEach(workflow => {
+              if (!workflowGroups[workflow.file]) {
+                workflowGroups[workflow.file] = [];
+              }
+              workflowGroups[workflow.file].push(workflow.artifact);
+            });
+            
+            for (const [workflowFile, artifacts] of Object.entries(workflowGroups)) {
               try {
                 const runs = await github.rest.actions.listWorkflowRuns({
                   owner,
                   repo,
-                  workflow_id: workflow.file,
+                  workflow_id: workflowFile,
                   status: 'success',
                   per_page: 1
                 });
                 
                 if (runs.data.workflow_runs.length > 0) {
                   const run = runs.data.workflow_runs[0];
-                  successfulRuns.push({
-                    workflow: workflow.file,
-                    artifact: workflow.artifact,
-                    runId: run.id,
-                    sha: run.head_sha.substring(0, 7),
-                    date: run.created_at
-                  });
-                  console.log(`✅ Found successful run for ${workflow.file}: #${run.id}`);
+                  
+                  // Add each artifact from this workflow run
+                  for (const artifactName of artifacts) {
+                    successfulRuns.push({
+                      workflow: workflowFile,
+                      artifact: artifactName,
+                      runId: run.id,
+                      sha: run.head_sha.substring(0, 7),
+                      date: run.created_at
+                    });
+                  }
+                  console.log(`✅ Found successful run for ${workflowFile}: #${run.id} with ${artifacts.length} artifacts`);
                 } else {
-                  console.log(`⚠️ No successful runs found for ${workflow.file}`);
+                  console.log(`⚠️ No successful runs found for ${workflowFile}`);
                 }
               } catch (error) {
-                console.log(`⚠️ Workflow ${workflow.file} not found or error: ${error.message}`);
+                console.log(`⚠️ Workflow ${workflowFile} not found or error: ${error.message}`);
               }
             }
             
@@ -114,12 +153,14 @@ jobs:
                   env: {
                     ...process.env,
                     GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
-                  }
+                  },
+                  ignoreReturnCode: true
                 });
                 
                 console.log(`✅ Downloaded ${run.artifact}`);
               } catch (error) {
                 console.log(`⚠️ Failed to download ${run.artifact}: ${error.message}`);
+                console.log(`This might be expected if the artifact doesn't exist for this workflow run.`);
               }
             }
 
@@ -127,7 +168,7 @@ jobs:
         run: |
           echo "=== Downloaded Artifacts ==="
           if [ -d "./artifacts" ]; then
-            find ./artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) | while read file; do
+            find ./artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) | while read file; do
               echo "Found: $file"
               ls -lh "$file"
             done
@@ -146,13 +187,26 @@ jobs:
             body += `## Available Platform Builds\n\n`;
             
             const platforms = {
-              'linux-x64': '🐧 Linux x64',
-              'linux-armhf': '🐧 Linux ARM (32-bit)',
-              'linux-arm64': '🐧 Linux ARM64',
-              'win32-x64': '🪟 Windows x64',
-              'win32-arm64': '🪟 Windows ARM64',
-              'darwin-x64': '🍎 macOS Intel',
-              'darwin-arm64': '🍎 macOS Apple Silicon'
+              'linux-x64-tar': '🐧 Linux x64 (TAR.GZ)',
+              'linux-x64-deb': '🐧 Linux x64 (DEB)',
+              'linux-x64-rpm': '🐧 Linux x64 (RPM)',
+              'linux-x64-appimage': '🐧 Linux x64 (AppImage)',
+              'linux-arm64-tar': '🐧 Linux ARM64 (TAR.GZ)',
+              'linux-arm64-deb': '🐧 Linux ARM64 (DEB)',
+              'linux-arm64-rpm': '🐧 Linux ARM64 (RPM)',
+              'linux-armhf-tar': '🐧 Linux ARM (TAR.GZ)',
+              'linux-armhf-deb': '🐧 Linux ARM (DEB)',
+              'linux-armhf-rpm': '🐧 Linux ARM (RPM)',
+              'win32-x64': '🪟 Windows x64 (ZIP)',
+              'win32-x64-user-setup': '🪟 Windows x64 (User Installer)',
+              'win32-x64-system-setup': '🪟 Windows x64 (System Installer)',
+              'win32-arm64': '🪟 Windows ARM64 (ZIP)',
+              'win32-arm64-user-setup': '🪟 Windows ARM64 (User Installer)',
+              'win32-arm64-system-setup': '🪟 Windows ARM64 (System Installer)',
+              'darwin-x64-zip': '🍎 macOS Intel (ZIP)',
+              'darwin-x64-dmg': '🍎 macOS Intel (DMG)',
+              'darwin-arm64-zip': '🍎 macOS Apple Silicon (ZIP)',
+              'darwin-arm64-dmg': '🍎 macOS Apple Silicon (DMG)'
             };
             
             runs.forEach(run => {
@@ -161,10 +215,18 @@ jobs:
               body += `- **${platformName}**: Build #${run.runId} (${run.sha})\n`;
             });
             
-            body += `\n## Installation\n`;
-            body += `1. Download the appropriate archive for your platform\n`;
-            body += `2. Extract the archive\n`;
-            body += `3. Run the \`ainative-studio\` executable\n\n`;
+            body += `\n## Installation\n\n`;
+            body += `### 🐧 Linux\n`;
+            body += `- **DEB packages** (Ubuntu/Debian): \`sudo dpkg -i ainative-studio-*.deb\`\n`;
+            body += `- **RPM packages** (RHEL/Fedora): \`sudo rpm -i ainative-studio-*.rpm\`\n`;
+            body += `- **AppImage** (Universal): Download, make executable, and run\n`;
+            body += `- **TAR.GZ**: Extract and run \`./ainative-studio\`\n\n`;
+            body += `### 🪟 Windows\n`;
+            body += `- **Installers**: Download \`.exe\` and run (User or System installer)\n`;
+            body += `- **ZIP**: Extract and run \`Code.exe\`\n\n`;
+            body += `### 🍎 macOS\n`;
+            body += `- **DMG**: Download, mount, and drag to Applications folder\n`;
+            body += `- **ZIP**: Extract \`AINativeStudio.app\` to Applications folder\n\n`;
             body += `## Release Information\n`;
             body += `This release contains the latest successful builds from each platform workflow. `;
             body += `Each build represents the most recent working version for that platform.\n\n`;
@@ -184,5 +246,10 @@ jobs:
           files: |
             ./artifacts/**/*.tar.gz
             ./artifacts/**/*.zip
+            ./artifacts/**/*.deb
+            ./artifacts/**/*.rpm
+            ./artifacts/**/*.AppImage
+            ./artifacts/**/*.exe
+            ./artifacts/**/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
