@@ -271,35 +271,43 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: "--max-old-space-size=8192"
       
-      - name: Find installer files
+      - name: Find and rename installer files
         working-directory: ainative-studio
         shell: pwsh
         run: |
           Write-Host "Searching for installer files..."
-          $installers = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" -or $_.Name -like "*setup*" }
           
-          if ($installers.Count -eq 0) {
-            Write-Host "Checking parent directory..."
-            $installers = Get-ChildItem -Path ../ -Recurse -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" -or $_.Name -like "*setup*" }
+          # Check for the new AINativeStudio.exe files first
+          $userSetup = ".build\win32-arm64\user-setup\AINativeStudio.exe"
+          $systemSetup = ".build\win32-arm64\system-setup\AINativeStudio.exe"
+          
+          # If not found, check for VSCodeSetup.exe and rename them
+          if (-not (Test-Path $userSetup)) {
+            $oldUserSetup = ".build\win32-arm64\user-setup\VSCodeSetup.exe"
+            if (Test-Path $oldUserSetup) {
+              Write-Host "Renaming user installer to AINativeStudio.exe"
+              Rename-Item -Path $oldUserSetup -NewName "AINativeStudio.exe"
+            }
           }
           
-          Write-Host "Found installers:"
-          $installers | ForEach-Object {
-            Write-Host "  - $($_.FullName)"
-            # Copy to a consistent location for artifact upload
-            Copy-Item $_.FullName -Destination "." -Force
+          if (-not (Test-Path $systemSetup)) {
+            $oldSystemSetup = ".build\win32-arm64\system-setup\VSCodeSetup.exe"
+            if (Test-Path $oldSystemSetup) {
+              Write-Host "Renaming system installer to AINativeStudio.exe"
+              Rename-Item -Path $oldSystemSetup -NewName "AINativeStudio.exe"
+            }
           }
           
-          # List files in current directory
-          Write-Host "`nFiles in current directory:"
-          Get-ChildItem -Filter "*.exe" | Format-Table Name, Length, LastWriteTime
+          # List the renamed files
+          Write-Host "`nInstaller files:"
+          Get-ChildItem -Path ".build\win32-arm64" -Recurse -Filter "*.exe" | Format-Table FullName, Length
       
       - name: Upload User Setup Installer
         uses: actions/upload-artifact@v4
         with:
           name: ainative-studio-win32-arm64-user-setup
           path: |
-            .build/win32-arm64/user-setup/VSCodeSetup.exe
+            .build/win32-arm64/user-setup/AINativeStudio.exe
           if-no-files-found: warn
           retention-days: 30
       
@@ -308,7 +316,7 @@ jobs:
         with:
           name: ainative-studio-win32-arm64-system-setup
           path: |
-            .build/win32-arm64/system-setup/VSCodeSetup.exe
+            .build/win32-arm64/system-setup/AINativeStudio.exe
           if-no-files-found: warn
           retention-days: 30
       

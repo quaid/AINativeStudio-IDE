@@ -20,7 +20,9 @@ const rcedit = require('rcedit');
 const repoPath = path.dirname(__dirname);
 const buildPath = (/** @type {string} */ arch) => path.join(path.dirname(repoPath), `VSCode-win32-${arch}`);
 const setupDir = (/** @type {string} */ arch, /** @type {string} */ target) => path.join(repoPath, '.build', `win32-${arch}`, `${target}-setup`);
-const issPath = path.join(__dirname, 'win32', 'code.iss');
+// Use ainative-studio.iss if it exists, otherwise fall back to code.iss
+const ainativeIssPath = path.join(__dirname, 'win32', 'ainative-studio.iss');
+const issPath = fs.existsSync(ainativeIssPath) ? ainativeIssPath : path.join(__dirname, 'win32', 'code.iss');
 const innoSetupPath = path.join(path.dirname(path.dirname(require.resolve('innosetup'))), 'bin', 'ISCC.exe');
 const signWin32Path = path.join(repoPath, 'build', 'azure-pipelines', 'common', 'sign-win32');
 

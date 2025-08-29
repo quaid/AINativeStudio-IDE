@@ -309,10 +309,23 @@ jobs:
           Section: editors
           Priority: optional
           Architecture: armhf
-          Maintainer: AINative Studio Team <team@ainativestudio.com>
-          Description: AI-powered code editor
-           AINative Studio is an AI-powered code editor built on VS Code,
-           providing intelligent code completion and editing capabilities.
+          Maintainer: AINative Studio Team <team@ainative.studio>
+          Homepage: https://www.ainative.studio/
+          Description: AINative Studio - AI-powered code editor
+           AINative Studio is a revolutionary AI-powered code editor built on the
+           robust foundation of Visual Studio Code. It provides intelligent code
+           completion, AI-assisted editing, and advanced development capabilities.
+           .
+           Key Features:
+           * AI-powered code completion and suggestions
+           * Intelligent code editing and refactoring
+           * Advanced debugging and testing tools
+           * Extensive language support and extensions
+           * Built-in terminal and Git integration
+           .
+           Perfect for developers who want to leverage AI to accelerate their
+           coding workflow while maintaining full control over their development
+           environment.
           Depends: libnss3, libatk-bridge2.0-0, libxkbfile1, libsecret-1-0
           EOF
           
