@@ -245,7 +245,8 @@ jobs:
           prerelease: ${{ inputs.prerelease }}
           files: |
             ./artifacts/**/*.tar.gz
-            ./artifacts/**/*.zip
+            ./artifacts/**/ainative-studio-win32-*64.zip
+            ./artifacts/**/ainative-studio-darwin-*.zip
             ./artifacts/**/*.deb
             ./artifacts/**/*.rpm
             ./artifacts/**/*.AppImage
