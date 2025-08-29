@@ -245,35 +245,48 @@ jobs:
           # Create Applications symlink
           ln -s /Applications dmg-temp/Applications
           
-          # Create DMG background using your branding
-          python3 -c "
+          # Create DMG background using Python script
+          cat > create_dmg_bg.py << 'EOF'
 from PIL import Image, ImageDraw, ImageFont
 import os
+
 width, height = 540, 380
 bg_color = (240, 240, 245)
 dmg_bg = Image.new('RGB', (width, height), bg_color)
 draw = ImageDraw.Draw(dmg_bg)
+
+# Load and resize logo
 logo = Image.open('ai_native_studio_icons/ai_native_studio_256x256.png')
 logo_size = 120
 logo_resized = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
 logo_x, logo_y = 80, (height - logo_size) // 2
 dmg_bg.paste(logo_resized, (logo_x, logo_y), logo_resized if logo_resized.mode == 'RGBA' else None)
+
+# Add text
 try:
     font_large = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 24)
     font_small = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 16)
 except:
     font_large = ImageFont.load_default()
     font_small = ImageFont.load_default()
+
 text_x, title_y, subtitle_y, instruction_y = 250, 120, 150, 200
 draw.text((text_x, title_y), 'AINative Studio', fill=(50, 50, 50), font=font_large)
 draw.text((text_x, subtitle_y), 'AI-powered code editor', fill=(100, 100, 100), font=font_small)
 draw.text((text_x, instruction_y), 'Drag to Applications to install', fill=(120, 120, 120), font=font_small)
+
+# Draw arrow
 arrow_start_x, arrow_start_y = 350, 280
 arrow_end_x, arrow_end_y = 450, 280
 draw.line([(arrow_start_x, arrow_start_y), (arrow_end_x, arrow_end_y)], fill=(100, 100, 100), width=3)
 draw.polygon([(arrow_end_x, arrow_end_y), (arrow_end_x-10, arrow_end_y-5), (arrow_end_x-10, arrow_end_y+5)], fill=(100, 100, 100))
+
 dmg_bg.save('dmg-background.png', 'PNG')
-"
+print('Created DMG background')
+EOF
+          
+          python3 create_dmg_bg.py
+          rm create_dmg_bg.py
           
           # Create DMG with custom background
           hdiutil create -volname "AINative Studio" \
