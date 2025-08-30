@@ -236,7 +236,7 @@ jobs:
           cat > AppDir/AppRun << 'EOF'
           #!/bin/bash
           HERE="$(dirname "$(readlink -f "${0}")")"
-          exec "${HERE}/usr/bin/void" "$@"
+          exec "${HERE}/usr/bin/void" --no-sandbox "$@"
           EOF
           chmod +x AppDir/AppRun
           
