@@ -164,14 +164,22 @@ jobs:
               }
             }
 
-      - name: List downloaded artifacts
+      - name: Fix file permissions and list artifacts
         run: |
           echo "=== Downloaded Artifacts ==="
           if [ -d "./artifacts" ]; then
+            # Make all AppImage files executable
+            find ./artifacts -name "*.AppImage" -exec chmod +x {} \;
+            
+            # List all artifacts
             find ./artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) | while read file; do
               echo "Found: $file"
               ls -lh "$file"
             done
+            
+            # Show AppImage permissions specifically
+            echo "=== AppImage Permissions ==="
+            find ./artifacts -name "*.AppImage" -exec ls -la {} \;
           else
             echo "No artifacts found"
           fi
@@ -219,8 +227,8 @@ jobs:
             body += `### 🐧 Linux\n`;
             body += `- **DEB packages** (Ubuntu/Debian): \`sudo dpkg -i ainative-studio-*.deb\`\n`;
             body += `- **RPM packages** (RHEL/Fedora): \`sudo rpm -i ainative-studio-*.rpm\`\n`;
-            body += `- **AppImage** (Universal): Download, make executable, and run\n`;
-            body += `- **TAR.GZ**: Extract and run \`./ainative-studio\`\n\n`;
+            body += `- **AppImage** (Universal): Download and run (already executable)\n`;
+            body += `- **TAR.GZ**: Extract and run \`./ainative-studio\` or \`./ainativestudio\` or \`./void\`\n\n`;
             body += `### 🪟 Windows\n`;
             body += `- **Installers**: Download \`.exe\` and run (User or System installer)\n`;
             body += `- **ZIP**: Extract and run \`Code.exe\`\n\n`;
