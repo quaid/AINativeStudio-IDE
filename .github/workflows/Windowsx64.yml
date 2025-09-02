@@ -246,17 +246,18 @@ jobs:
       
       # ===== PACKAGING SECTION =====
       
-      - name: Extract build for packaging
+      - name: Prepare build for installer creation
         shell: pwsh
         run: |
-          Write-Host "Extracting build artifact for packaging..."
-          # Extract to the root of the repository where Inno Setup expects it
+          Write-Host "Setting up build for installer creation..."
+          # The gulp installer tasks expect the build in parent directory
+          # Extract the ZIP we just created to the correct location for Inno Setup
           7z x ainative-studio/ainative-studio-win32-x64.zip -o"VSCode-win32-x64" -y
-          Write-Host "Build extracted successfully"
+          Write-Host "Build extracted for installer creation"
           Write-Host "Verifying extraction location..."
           Get-ChildItem -Path . -Directory | Format-Table Name
           if (Test-Path VSCode-win32-x64) {
-            Write-Host "✅ VSCode-win32-x64 found in correct location"
+            Write-Host "✅ VSCode-win32-x64 found for installer creation"
           }
           
           # Create empty tools folder if it doesn't exist (required by Inno Setup)
@@ -310,6 +311,8 @@ jobs:
             if (Test-Path $oldUserSetup) {
               Write-Host "Renaming user installer to AINativeStudio.exe"
               Rename-Item -Path $oldUserSetup -NewName "AINativeStudio.exe"
+            } else {
+              Write-Host "⚠️ No user installer found at expected locations"
             }
           }
           
@@ -318,29 +321,49 @@ jobs:
             if (Test-Path $oldSystemSetup) {
               Write-Host "Renaming system installer to AINativeStudio.exe"
               Rename-Item -Path $oldSystemSetup -NewName "AINativeStudio.exe"
+            } else {
+              Write-Host "⚠️ No system installer found at expected locations"
             }
           }
           
-          # List the renamed files
-          Write-Host "`nInstaller files:"
-          Get-ChildItem -Path ".build\win32-x64" -Recurse -Filter "*.exe" | Format-Table FullName, Length
+          # List all exe files in build directory for debugging
+          Write-Host "`nAll EXE files in .build directory:"
+          if (Test-Path ".build") {
+            Get-ChildItem -Path ".build" -Recurse -Filter "*.exe" | Format-Table FullName, Length -AutoSize
+          } else {
+            Write-Host "❌ .build directory not found!"
+          }
+          
+          # Verify final installer files exist
+          Write-Host "`nFinal installer check:"
+          if (Test-Path $userSetup) {
+            Write-Host "✅ User installer: $userSetup"
+          } else {
+            Write-Host "❌ User installer missing: $userSetup"
+          }
+          
+          if (Test-Path $systemSetup) {
+            Write-Host "✅ System installer: $systemSetup"  
+          } else {
+            Write-Host "❌ System installer missing: $systemSetup"
+          }
       
       - name: Upload User Setup Installer
         uses: actions/upload-artifact@v4
+        if: hashFiles('ainative-studio/.build/win32-x64/user-setup/AINativeStudio.exe') != ''
         with:
           name: ainative-studio-win32-x64-user-setup
           path: |
-            .build/win32-x64/user-setup/AINativeStudio.exe
-          if-no-files-found: warn
+            ainative-studio/.build/win32-x64/user-setup/AINativeStudio.exe
           retention-days: 30
       
       - name: Upload System Setup Installer
         uses: actions/upload-artifact@v4
+        if: hashFiles('ainative-studio/.build/win32-x64/system-setup/AINativeStudio.exe') != ''
         with:
           name: ainative-studio-win32-x64-system-setup
           path: |
-            .build/win32-x64/system-setup/AINativeStudio.exe
-          if-no-files-found: warn
+            ainative-studio/.build/win32-x64/system-setup/AINativeStudio.exe
           retention-days: 30
       
       - name: Upload installers to release
