@@ -182,15 +182,15 @@ jobs:
             # Create wrapper scripts for easier launching
             cat > ainative-studio << 'EOF'
 #!/bin/bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${DIR}/void" "$@"
+DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
+exec "$${DIR}/void" "$$@"
 EOF
             chmod +x ainative-studio
             
             cat > ainativestudio << 'EOF'
 #!/bin/bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${DIR}/void" "$@"
+DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
+exec "$${DIR}/void" "$$@"
 EOF
             chmod +x ainativestudio
             
@@ -202,15 +202,15 @@ EOF
             # Create wrapper scripts for easier launching
             cat > ainative-studio << 'EOF'
 #!/bin/bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${DIR}/void" "$@"
+DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
+exec "$${DIR}/void" "$$@"
 EOF
             chmod +x ainative-studio
             
             cat > ainativestudio << 'EOF'
 #!/bin/bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${DIR}/void" "$@"
+DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
+exec "$${DIR}/void" "$$@"
 EOF
             chmod +x ainativestudio
             
