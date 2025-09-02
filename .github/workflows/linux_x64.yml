@@ -180,18 +180,14 @@ jobs:
             cd VSCode-linux-x64
             
             # Create wrapper scripts for easier launching
-            cat > ainative-studio << 'EOF'
-#!/bin/bash
-DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
-exec "$${DIR}/void" "$$@"
-EOF
+            echo '#!/bin/bash' > ainative-studio
+            echo 'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> ainative-studio
+            echo 'exec "${DIR}/void" "$@"' >> ainative-studio
             chmod +x ainative-studio
             
-            cat > ainativestudio << 'EOF'
-#!/bin/bash
-DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
-exec "$${DIR}/void" "$$@"
-EOF
+            echo '#!/bin/bash' > ainativestudio
+            echo 'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> ainativestudio
+            echo 'exec "${DIR}/void" "$@"' >> ainativestudio
             chmod +x ainativestudio
             
             tar --warning=no-file-changed -czf ../ainative-studio-linux-x64.tar.gz . || true
@@ -200,18 +196,14 @@ EOF
             cd ../VSCode-linux-x64
             
             # Create wrapper scripts for easier launching
-            cat > ainative-studio << 'EOF'
-#!/bin/bash
-DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
-exec "$${DIR}/void" "$$@"
-EOF
+            echo '#!/bin/bash' > ainative-studio
+            echo 'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> ainative-studio
+            echo 'exec "${DIR}/void" "$@"' >> ainative-studio
             chmod +x ainative-studio
             
-            cat > ainativestudio << 'EOF'
-#!/bin/bash
-DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
-exec "$${DIR}/void" "$$@"
-EOF
+            echo '#!/bin/bash' > ainativestudio
+            echo 'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> ainativestudio
+            echo 'exec "${DIR}/void" "$@"' >> ainativestudio
             chmod +x ainativestudio
             
             tar --warning=no-file-changed -czf ainative-studio-linux-x64.tar.gz . || true
