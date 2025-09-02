@@ -161,6 +161,31 @@ jobs:
             exit 1
           }
       
+      - name: Set executable metadata
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Setting executable metadata..."
+          $exePath = if (Test-Path VSCode-win32-x64/void.exe) { "VSCode-win32-x64/void.exe" } elseif (Test-Path ../VSCode-win32-x64/void.exe) { "../VSCode-win32-x64/void.exe" } else { $null }
+          
+          if ($exePath) {
+            Write-Host "Found executable at: $exePath"
+            
+            # Install rcedit if not available
+            if (-not (Get-Command rcedit -ErrorAction SilentlyContinue)) {
+              Write-Host "Installing rcedit..."
+              npm install -g rcedit
+            }
+            
+            # Set version info to help with Windows SmartScreen
+            Write-Host "Setting version information..."
+            rcedit $exePath --set-version-string "CompanyName" "AINative Studio" --set-version-string "FileDescription" "AINative Studio - AI-powered code editor" --set-version-string "ProductName" "AINative Studio" --set-version-string "InternalName" "ainative-studio" --set-version-string "OriginalFilename" "void.exe" --set-version-string "LegalCopyright" "Copyright AINative Studio Team" --set-file-version "1.4.9.0" --set-product-version "1.4.9.0"
+            
+            Write-Host "Executable metadata updated successfully"
+          } else {
+            Write-Host "⚠️ Could not find void.exe to set metadata"
+          }
+      
       - name: Create archive
         working-directory: ainative-studio
         shell: pwsh

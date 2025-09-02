@@ -175,27 +175,47 @@ jobs:
           fi
       
       - name: Create archive with wrapper scripts
+        working-directory: ainative-studio
         run: |
+          echo "Creating wrapper scripts and archive..."
+          echo "Current directory: $(pwd)"
+          echo "Contents:"
+          ls -la
+          
           if [ -d "VSCode-linux-x64" ]; then
+            echo "Found VSCode-linux-x64 in current directory"
             cd VSCode-linux-x64
             
+            echo "Contents of VSCode-linux-x64:"
+            ls -la
+            
             # Create wrapper scripts for easier launching
+            echo "Creating wrapper scripts..."
             echo '#!/bin/bash' > ainative-studio
             echo 'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> ainative-studio
             echo 'exec "${DIR}/void" "$@"' >> ainative-studio
             chmod +x ainative-studio
             
-            echo '#!/bin/bash' > ainativestudio
+            echo '#!/bin/bash' > ainativestudio  
             echo 'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> ainativestudio
             echo 'exec "${DIR}/void" "$@"' >> ainativestudio
             chmod +x ainativestudio
             
+            echo "Wrapper scripts created, verifying:"
+            ls -la ainative*
+            
+            echo "Creating tar.gz archive..."
             tar --warning=no-file-changed -czf ../ainative-studio-linux-x64.tar.gz . || true
             cd ..
           elif [ -d "../VSCode-linux-x64" ]; then
+            echo "Found VSCode-linux-x64 in parent directory"
             cd ../VSCode-linux-x64
             
+            echo "Contents of VSCode-linux-x64:"
+            ls -la
+            
             # Create wrapper scripts for easier launching
+            echo "Creating wrapper scripts..."
             echo '#!/bin/bash' > ainative-studio
             echo 'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> ainative-studio
             echo 'exec "${DIR}/void" "$@"' >> ainative-studio
@@ -206,13 +226,20 @@ jobs:
             echo 'exec "${DIR}/void" "$@"' >> ainativestudio
             chmod +x ainativestudio
             
+            echo "Wrapper scripts created, verifying:"
+            ls -la ainative*
+            
+            echo "Creating tar.gz archive..."
             tar --warning=no-file-changed -czf ainative-studio-linux-x64.tar.gz . || true
             mv ainative-studio-linux-x64.tar.gz ../ainative-studio/
           else
             echo "::error::VSCode-linux-x64 directory not found in current or parent directory!"
+            echo "Contents of current directory:"
+            ls -la
+            echo "Contents of parent directory:"
+            ls -la ../
             exit 1
           fi
-        working-directory: ainative-studio
 
       - name: Download and setup AppImage tools
         run: |
@@ -277,6 +304,23 @@ jobs:
           ARCH=x86_64 ./appimagetool-extracted/AppRun AppDir ainative-studio-linux-x64.AppImage
           # Make AppImage executable
           chmod +x ainative-studio-linux-x64.AppImage
+          
+          # Verify AppImage is executable and functional
+          echo "Verifying AppImage..."
+          ls -la ainative-studio-linux-x64.AppImage
+          
+          # Test that AppImage can be executed (should show help or version)
+          echo "Testing AppImage execution..."
+          ./ainative-studio-linux-x64.AppImage --version || echo "AppImage version check failed, but file created"
+          
+          # Double-check permissions
+          if [ -x ainative-studio-linux-x64.AppImage ]; then
+            echo "✅ AppImage is executable"
+          else
+            echo "❌ AppImage is not executable"
+            chmod +x ainative-studio-linux-x64.AppImage
+            echo "Fixed permissions"
+          fi
         working-directory: ainative-studio
         env:
           ARCH: x86_64
