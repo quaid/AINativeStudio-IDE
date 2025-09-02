@@ -254,7 +254,7 @@ jobs:
           files: |
             ./artifacts/**/*.tar.gz
             ./artifacts/**/ainative-studio-win32-*64.zip
-            ./artifacts/**/AINativeStudio-darwin-*.zip
+            ./artifacts/**/ainative-studio-darwin-*.zip
             ./artifacts/**/*.deb
             ./artifacts/**/*.rpm
             ./artifacts/**/*.AppImage
