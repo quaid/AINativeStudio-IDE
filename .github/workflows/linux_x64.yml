@@ -174,14 +174,46 @@ jobs:
             exit 1
           fi
       
-      - name: Create archive
+      - name: Create archive with wrapper scripts
         run: |
           if [ -d "VSCode-linux-x64" ]; then
             cd VSCode-linux-x64
+            
+            # Create wrapper scripts for easier launching
+            cat > ainative-studio << 'EOF'
+#!/bin/bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${DIR}/void" "$@"
+EOF
+            chmod +x ainative-studio
+            
+            cat > ainativestudio << 'EOF'
+#!/bin/bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${DIR}/void" "$@"
+EOF
+            chmod +x ainativestudio
+            
             tar --warning=no-file-changed -czf ../ainative-studio-linux-x64.tar.gz . || true
             cd ..
           elif [ -d "../VSCode-linux-x64" ]; then
             cd ../VSCode-linux-x64
+            
+            # Create wrapper scripts for easier launching
+            cat > ainative-studio << 'EOF'
+#!/bin/bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${DIR}/void" "$@"
+EOF
+            chmod +x ainative-studio
+            
+            cat > ainativestudio << 'EOF'
+#!/bin/bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${DIR}/void" "$@"
+EOF
+            chmod +x ainativestudio
+            
             tar --warning=no-file-changed -czf ainative-studio-linux-x64.tar.gz . || true
             mv ainative-studio-linux-x64.tar.gz ../ainative-studio/
           else
