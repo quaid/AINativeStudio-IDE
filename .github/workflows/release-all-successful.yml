@@ -254,11 +254,11 @@ jobs:
           files: |
             ./artifacts/**/*.tar.gz
             ./artifacts/**/ainative-studio-win32-*64.zip
-            ./artifacts/**/ainative-studio-darwin-*.zip
+            ./artifacts/**/AINativeStudio-darwin-*.zip
             ./artifacts/**/*.deb
             ./artifacts/**/*.rpm
             ./artifacts/**/*.AppImage
-            ./artifacts/**/*.exe
+            ./artifacts/**/AINativeStudio*.exe
             ./artifacts/**/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

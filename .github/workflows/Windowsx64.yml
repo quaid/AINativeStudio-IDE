@@ -326,16 +326,16 @@ jobs:
         run: |
           Write-Host "Searching for installer files..."
           
-          # Check for the new AINativeStudio.exe files first
-          $userSetup = ".build\win32-x64\user-setup\AINativeStudio.exe"
-          $systemSetup = ".build\win32-x64\system-setup\AINativeStudio.exe"
+          # Check for the new AINativeStudio installer files first
+          $userSetup = ".build\win32-x64\user-setup\AINativeStudio-UserSetup.exe"
+          $systemSetup = ".build\win32-x64\system-setup\AINativeStudio-SystemSetup.exe"
           
           # If not found, check for VSCodeSetup.exe and rename them
           if (-not (Test-Path $userSetup)) {
             $oldUserSetup = ".build\win32-x64\user-setup\VSCodeSetup.exe"
             if (Test-Path $oldUserSetup) {
-              Write-Host "Renaming user installer to AINativeStudio.exe"
-              Rename-Item -Path $oldUserSetup -NewName "AINativeStudio.exe"
+              Write-Host "Renaming user installer to AINativeStudio-UserSetup.exe"
+              Rename-Item -Path $oldUserSetup -NewName "AINativeStudio-UserSetup.exe"
             } else {
               Write-Host "⚠️ No user installer found at expected locations"
             }
@@ -344,8 +344,8 @@ jobs:
           if (-not (Test-Path $systemSetup)) {
             $oldSystemSetup = ".build\win32-x64\system-setup\VSCodeSetup.exe"
             if (Test-Path $oldSystemSetup) {
-              Write-Host "Renaming system installer to AINativeStudio.exe"
-              Rename-Item -Path $oldSystemSetup -NewName "AINativeStudio.exe"
+              Write-Host "Renaming system installer to AINativeStudio-SystemSetup.exe"
+              Rename-Item -Path $oldSystemSetup -NewName "AINativeStudio-SystemSetup.exe"
             } else {
               Write-Host "⚠️ No system installer found at expected locations"
             }
@@ -375,20 +375,20 @@ jobs:
       
       - name: Upload User Setup Installer
         uses: actions/upload-artifact@v4
-        if: hashFiles('ainative-studio/.build/win32-x64/user-setup/AINativeStudio.exe') != ''
+        if: hashFiles('ainative-studio/.build/win32-x64/user-setup/AINativeStudio-UserSetup.exe') != ''
         with:
           name: ainative-studio-win32-x64-user-setup
           path: |
-            ainative-studio/.build/win32-x64/user-setup/AINativeStudio.exe
+            ainative-studio/.build/win32-x64/user-setup/AINativeStudio-UserSetup.exe
           retention-days: 30
       
       - name: Upload System Setup Installer
         uses: actions/upload-artifact@v4
-        if: hashFiles('ainative-studio/.build/win32-x64/system-setup/AINativeStudio.exe') != ''
+        if: hashFiles('ainative-studio/.build/win32-x64/system-setup/AINativeStudio-SystemSetup.exe') != ''
         with:
           name: ainative-studio-win32-x64-system-setup
           path: |
-            ainative-studio/.build/win32-x64/system-setup/AINativeStudio.exe
+            ainative-studio/.build/win32-x64/system-setup/AINativeStudio-SystemSetup.exe
           retention-days: 30
       
       - name: Upload installers to release
