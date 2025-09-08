@@ -220,10 +220,13 @@ jobs:
             mv ../VSCode-darwin-arm64/Void.app ../AINativeStudio.app
           elif [ -d "../VSCode-darwin-arm64" ]; then
             echo "Found VSCode-darwin-arm64 directory, looking for .app bundle inside"
-            find ../VSCode-darwin-arm64 -name "*.app" -type d | head -1 | while read app; do
+            app=$(find ../VSCode-darwin-arm64 -name "*.app" -type d | head -1)
+            if [ -n "$app" ]; then
               echo "Found app bundle: $app"
               mv "$app" ../AINativeStudio.app
-            done
+            else
+              echo "No .app bundle found in VSCode-darwin-arm64 directory"
+            fi
           else
             echo "No recognizable app structure found"
           fi
@@ -237,13 +240,17 @@ jobs:
           if [ -d "../AINativeStudio.app" ]; then
             cd ..
             zip -r -y ainative-studio/AINativeStudio-darwin-arm64.zip AINativeStudio.app
+            echo "ZIP archive created successfully"
           elif [ -d "../Void.app" ]; then
             cd ..
             # Rename app bundle
             mv Void.app AINativeStudio.app
             zip -r -y ainative-studio/AINativeStudio-darwin-arm64.zip AINativeStudio.app
+            echo "ZIP archive created successfully"
+          else
+            echo "ERROR: No app bundle found - cannot create ZIP"
+            exit 1
           fi
-          echo "ZIP archive created"
       
       - name: Create DMG
         run: |
@@ -255,9 +262,15 @@ jobs:
           # Copy the app bundle
           if [ -d "../AINativeStudio.app" ]; then
             cp -R ../AINativeStudio.app dmg-temp/
+            echo "Copied AINativeStudio.app to DMG contents"
           elif [ -d "../Void.app" ]; then
             # Rename app bundle if needed
             cp -R ../Void.app dmg-temp/AINativeStudio.app
+            echo "Copied Void.app as AINativeStudio.app to DMG contents"
+          else
+            echo "ERROR: No app bundle found - cannot create DMG"
+            rm -rf dmg-temp
+            exit 1
           fi
           
           # Create Applications symlink
