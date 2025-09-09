@@ -247,6 +247,7 @@ jobs:
           ls -la ../
       
       - name: Create ZIP archive
+        working-directory: ainative-studio
         run: |
           echo "Creating ZIP archive..."
           if [ -d "../AINativeStudio.app" ]; then
@@ -271,6 +272,7 @@ jobs:
           fi
       
       - name: Create DMG
+        working-directory: ainative-studio
         run: |
           echo "Creating simple DMG..."
           
