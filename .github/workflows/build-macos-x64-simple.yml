@@ -207,9 +207,18 @@ jobs:
         working-directory: ainative-studio
         run: |
           echo "Extracting build artifact..."
+          echo "Listing tar.gz contents first:"
+          tar -tzf ainative-studio-darwin-x64.tar.gz | head -20
+          
           tar -xzf ainative-studio-darwin-x64.tar.gz -C ../
           echo "Contents after extraction:"
           ls -la ../
+          
+          echo "Looking for any .app directories recursively:"
+          find .. -name "*.app" -type d 2>/dev/null || echo "No .app directories found"
+          
+          echo "Looking for VSCode directories:"
+          find .. -name "VSCode*" -type d 2>/dev/null || echo "No VSCode directories found"
           
           # Look for app bundle in various possible locations
           if [ -d "../Void.app" ]; then
