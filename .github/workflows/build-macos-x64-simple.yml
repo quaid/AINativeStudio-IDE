@@ -221,7 +221,10 @@ jobs:
           find .. -name "VSCode*" -type d 2>/dev/null || echo "No VSCode directories found"
           
           # Look for app bundle in various possible locations
-          if [ -d "../Void.app" ]; then
+          if [ -d "../AINative Studio.app" ]; then
+            echo "Found 'AINative Studio.app', renaming to 'AINativeStudio.app'"
+            mv "../AINative Studio.app" ../AINativeStudio.app
+          elif [ -d "../Void.app" ]; then
             echo "Found Void.app, renaming to AINativeStudio.app"
             mv ../Void.app ../AINativeStudio.app
           elif [ -d "../VSCode-darwin-x64/Void.app" ]; then
@@ -250,6 +253,12 @@ jobs:
             cd ..
             zip -r -y ainative-studio/AINativeStudio-darwin-x64.zip AINativeStudio.app
             echo "ZIP archive created successfully"
+          elif [ -d "../AINative Studio.app" ]; then
+            cd ..
+            # Rename app bundle
+            mv "AINative Studio.app" AINativeStudio.app
+            zip -r -y ainative-studio/AINativeStudio-darwin-x64.zip AINativeStudio.app
+            echo "ZIP archive created successfully"
           elif [ -d "../Void.app" ]; then
             cd ..
             # Rename app bundle
@@ -272,6 +281,10 @@ jobs:
           if [ -d "../AINativeStudio.app" ]; then
             cp -R ../AINativeStudio.app dmg-temp/
             echo "Copied AINativeStudio.app to DMG contents"
+          elif [ -d "../AINative Studio.app" ]; then
+            # Copy and rename app bundle if needed
+            cp -R "../AINative Studio.app" dmg-temp/AINativeStudio.app
+            echo "Copied 'AINative Studio.app' as AINativeStudio.app to DMG contents"
           elif [ -d "../Void.app" ]; then
             # Rename app bundle if needed
             cp -R ../Void.app dmg-temp/AINativeStudio.app
