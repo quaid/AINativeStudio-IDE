@@ -310,7 +310,6 @@ jobs:
           rm -rf dmg-temp
           
           echo "DMG created successfully"
-        working-directory: ainative-studio
       
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
