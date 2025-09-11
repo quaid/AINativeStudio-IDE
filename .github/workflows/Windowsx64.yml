@@ -220,8 +220,70 @@ jobs:
           path: ainative-studio/ainative-studio-win32-x64.zip
           retention-days: 7
 
-  package:
+  sign:
     needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-win32-x64
+          path: ./build-artifact/
+
+      - name: Extract build for signing
+        shell: pwsh
+        run: |
+          Write-Host "Extracting build for signing..."
+          7z x build-artifact/ainative-studio-win32-x64.zip -o"VSCode-win32-x64" -y
+          Write-Host "Build extracted for signing"
+
+      - name: Find executable to sign
+        id: find-exe
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path "VSCode-win32-x64" -Filter "*.exe" -Recurse | Select-Object -First 1
+          $exePath = $exe.FullName
+          Write-Host "Found executable: $exePath"
+          echo "exe_path=$exePath" >> $env:GITHUB_OUTPUT
+
+      - name: Sign executable with SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: 'e7b381ae-94e5-4fee-b694-0828622d0e95'
+          project-slug: 'ainative-studio-ide'
+          signing-config-slug: 'test-signing'
+          artifact-config-slug: 'portable-executable'
+          file-path: ${{ steps.find-exe.outputs.exe_path }}
+          wait-for-completion: true
+          output-file-path: './signed.exe'
+
+      - name: Replace unsigned with signed executable
+        shell: pwsh
+        run: |
+          $originalPath = "${{ steps.find-exe.outputs.exe_path }}"
+          Write-Host "Replacing unsigned exe at: $originalPath"
+          Move-Item -Path "./signed.exe" -Destination $originalPath -Force
+          Write-Host "Executable signed successfully"
+
+      - name: Create signed archive
+        shell: pwsh
+        run: |
+          Set-Location VSCode-win32-x64
+          7z a -tzip ../ainative-studio-win32-x64-signed.zip .
+          Write-Host "Signed archive created"
+
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-win32-x64-signed
+          path: ainative-studio-win32-x64-signed.zip
+          retention-days: 7
+
+  package:
+    needs: sign
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -263,10 +325,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Download build artifact
+      - name: Download signed artifact
         uses: actions/download-artifact@v4
         with:
-          name: ainative-studio-win32-x64
+          name: ainative-studio-win32-x64-signed
           path: ainative-studio/
       
       # ===== PACKAGING SECTION =====
@@ -276,8 +338,8 @@ jobs:
         run: |
           Write-Host "Setting up build for installer creation..."
           # The gulp installer tasks expect the build in parent directory
-          # Extract the ZIP we just created to the correct location for Inno Setup
-          7z x ainative-studio/ainative-studio-win32-x64.zip -o"VSCode-win32-x64" -y
+          # Extract the signed ZIP to the correct location for Inno Setup
+          7z x ainative-studio/ainative-studio-win32-x64-signed.zip -o"VSCode-win32-x64" -y
           Write-Host "Build extracted for installer creation"
           Write-Host "Verifying extraction location..."
           Get-ChildItem -Path . -Directory | Format-Table Name
