@@ -180,54 +180,39 @@ jobs:
     timeout-minutes: 10
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ainative-studio-win32-arm64
-          path: ./build-artifact/
-
-      - name: Extract build for signing
-        shell: pwsh
-        run: |
-          Write-Host "Extracting build for signing..."
-          7z x build-artifact/ainative-studio-win32-arm64.zip -o"VSCode-win32-arm64" -y
-          Write-Host "Build extracted for signing"
-
-      - name: Find executable to sign
-        id: find-exe
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem -Path "VSCode-win32-arm64" -Filter "*.exe" -Recurse | Select-Object -First 1
-          $exePath = $exe.FullName
-          Write-Host "Found executable: $exePath"
-          echo "exe_path=$exePath" >> $env:GITHUB_OUTPUT
-
-      - name: Sign executable with SignPath
+      - name: Sign build artifact with SignPath
         uses: signpath/github-action-submit-signing-request@v1
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: 'e7b381ae-94e5-4fee-b694-0828622d0e95'
           project-slug: 'ainative-studio-ide'
-          signing-config-slug: 'test-signing'
-          artifact-config-slug: 'portable-executable'
-          file-path: ${{ steps.find-exe.outputs.exe_path }}
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: 'portable-executable'
+          github-artifact-id: 'ainative-studio-win32-arm64'
           wait-for-completion: true
-          output-file-path: './signed.exe'
+          output-artifact-directory: './signed-output'
 
-      - name: Replace unsigned with signed executable
+      - name: Prepare signed archive
         shell: pwsh
         run: |
-          $originalPath = "${{ steps.find-exe.outputs.exe_path }}"
-          Write-Host "Replacing unsigned exe at: $originalPath"
-          Move-Item -Path "./signed.exe" -Destination $originalPath -Force
-          Write-Host "Executable signed successfully"
-
-      - name: Create signed archive
-        shell: pwsh
-        run: |
-          Set-Location VSCode-win32-arm64
-          7z a -tzip ../ainative-studio-win32-arm64-signed.zip .
-          Write-Host "Signed archive created"
+          Write-Host "Processing signed output from SignPath..."
+          # SignPath downloads and signs the artifact, then outputs to specified directory
+          if (Test-Path "./signed-output") {
+            Get-ChildItem -Path "./signed-output" -Recurse | Format-Table Name, FullName
+            # The signed artifact should be in the output directory
+            $signedZip = Get-ChildItem -Path "./signed-output" -Filter "*.zip" | Select-Object -First 1
+            if ($signedZip) {
+              Write-Host "Found signed archive: $($signedZip.FullName)"
+              Copy-Item -Path $signedZip.FullName -Destination "./ainative-studio-win32-arm64-signed.zip"
+              Write-Host "Signed archive prepared"
+            } else {
+              Write-Host "❌ No signed ZIP found in output directory"
+              exit 1
+            }
+          } else {
+            Write-Host "❌ SignPath output directory not found"
+            exit 1
+          }
 
       - name: Upload signed artifact
         uses: actions/upload-artifact@v4
