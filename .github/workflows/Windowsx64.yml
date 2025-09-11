@@ -220,12 +220,13 @@ jobs:
           path: ainative-studio/ainative-studio-win32-x64.zip
           retention-days: 7
 
-  sign:
-    needs: build
-    runs-on: windows-latest
-    timeout-minutes: 10
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
-    steps:
+  # SignPath signing disabled - use manual signing instead
+  # sign:
+  #   needs: build
+  #   runs-on: windows-latest
+  #   timeout-minutes: 10
+  #   if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+  #   steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
         id: download
@@ -246,7 +247,7 @@ jobs:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: 'e7b381ae-94e5-4fee-b694-0828622d0e95'
           project-slug: 'ainative-studio-ide'
-          signing-policy-slug: 'test-signing'
+          signing-policy-slug: 'github-ci-signing'
           artifact-configuration-slug: 'initial-version'
           github-artifact-id: ${{ steps.upload-for-signing.outputs.artifact-id }}
           wait-for-completion: true
@@ -282,7 +283,7 @@ jobs:
           retention-days: 7
 
   package:
-    needs: sign
+    needs: build  # Changed from 'sign' since signing is disabled
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -324,10 +325,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Download signed artifact
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: ainative-studio-win32-x64-signed
+          name: ainative-studio-win32-x64
           path: ainative-studio/
       
       # ===== PACKAGING SECTION =====
@@ -338,7 +339,7 @@ jobs:
           Write-Host "Setting up build for installer creation..."
           # The gulp installer tasks expect the build in parent directory
           # Extract the signed ZIP to the correct location for Inno Setup
-          7z x ainative-studio/ainative-studio-win32-x64-signed.zip -o"VSCode-win32-x64" -y
+          7z x ainative-studio/ainative-studio-win32-x64.zip -o"VSCode-win32-x64" -y
           Write-Host "Build extracted for installer creation"
           Write-Host "Verifying extraction location..."
           Get-ChildItem -Path . -Directory | Format-Table Name
