@@ -220,67 +220,8 @@ jobs:
           path: ainative-studio/ainative-studio-win32-x64.zip
           retention-days: 7
 
-  # SignPath signing disabled - use manual signing instead
-  # sign:
-  #   needs: build
-  #   runs-on: windows-latest
-  #   timeout-minutes: 10
-  #   if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
-  #   steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        id: download
-        with:
-          name: ainative-studio-win32-x64
-          path: ./unsigned-artifact
-      
-      - name: Upload artifact for SignPath
-        uses: actions/upload-artifact@v4
-        id: upload-for-signing
-        with:
-          name: ainative-studio-win32-x64-for-signing
-          path: ./unsigned-artifact/ainative-studio-win32-x64.zip
-      
-      - name: Sign build artifact with SignPath
-        uses: signpath/github-action-submit-signing-request@v1.3
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: 'e7b381ae-94e5-4fee-b694-0828622d0e95'
-          project-slug: 'ainative-studio-ide'
-          signing-policy-slug: 'github-ci-signing'
-          artifact-configuration-slug: 'initial-version'
-          github-artifact-id: ${{ steps.upload-for-signing.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: './signed-output'
-
-      - name: Prepare signed archive
-        shell: pwsh
-        run: |
-          Write-Host "Processing signed output from SignPath..."
-          # SignPath downloads and signs the artifact, then outputs to specified directory
-          if (Test-Path "./signed-output") {
-            Get-ChildItem -Path "./signed-output" -Recurse | Format-Table Name, FullName
-            # The signed artifact should be in the output directory
-            $signedZip = Get-ChildItem -Path "./signed-output" -Filter "*.zip" | Select-Object -First 1
-            if ($signedZip) {
-              Write-Host "Found signed archive: $($signedZip.FullName)"
-              Copy-Item -Path $signedZip.FullName -Destination "./ainative-studio-win32-x64-signed.zip"
-              Write-Host "Signed archive prepared"
-            } else {
-              Write-Host "❌ No signed ZIP found in output directory"
-              exit 1
-            }
-          } else {
-            Write-Host "❌ SignPath output directory not found"
-            exit 1
-          }
-
-      - name: Upload signed artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ainative-studio-win32-x64-signed
-          path: ainative-studio-win32-x64-signed.zip
-          retention-days: 7
+  # SignPath signing disabled - use manual signing instead  
+  # Complete signing job commented out due to free tier limitations
 
   package:
     needs: build  # Changed from 'sign' since signing is disabled
