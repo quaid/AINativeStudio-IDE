@@ -277,15 +277,29 @@ jobs:
         run: |
           Write-Host "Searching for installer files..."
           
-          # Check for the new AINativeStudio installer files first
+          # Check for the target filenames first
           $userSetup = ".build\win32-arm64\user-setup\AINativeStudio-UserSetup.exe"
           $systemSetup = ".build\win32-arm64\system-setup\AINativeStudio-SystemSetup.exe"
           
-          # If not found, check for VSCodeSetup.exe and rename them
+          # Rename AINativeStudio.exe to the expected names
+          $actualUserSetup = ".build\win32-arm64\user-setup\AINativeStudio.exe"
+          $actualSystemSetup = ".build\win32-arm64\system-setup\AINativeStudio.exe"
+          
+          if (Test-Path $actualUserSetup) {
+            Write-Host "Renaming $actualUserSetup to AINativeStudio-UserSetup.exe"
+            Rename-Item -Path $actualUserSetup -NewName "AINativeStudio-UserSetup.exe"
+          }
+          
+          if (Test-Path $actualSystemSetup) {
+            Write-Host "Renaming $actualSystemSetup to AINativeStudio-SystemSetup.exe"  
+            Rename-Item -Path $actualSystemSetup -NewName "AINativeStudio-SystemSetup.exe"
+          }
+          
+          # Also check for old VSCodeSetup.exe names (fallback)
           if (-not (Test-Path $userSetup)) {
             $oldUserSetup = ".build\win32-arm64\user-setup\VSCodeSetup.exe"
             if (Test-Path $oldUserSetup) {
-              Write-Host "Renaming user installer to AINativeStudio-UserSetup.exe"
+              Write-Host "Renaming VSCode user installer to AINativeStudio-UserSetup.exe"
               Rename-Item -Path $oldUserSetup -NewName "AINativeStudio-UserSetup.exe"
             }
           }
@@ -293,13 +307,13 @@ jobs:
           if (-not (Test-Path $systemSetup)) {
             $oldSystemSetup = ".build\win32-arm64\system-setup\VSCodeSetup.exe"
             if (Test-Path $oldSystemSetup) {
-              Write-Host "Renaming system installer to AINativeStudio-SystemSetup.exe"
+              Write-Host "Renaming VSCode system installer to AINativeStudio-SystemSetup.exe"
               Rename-Item -Path $oldSystemSetup -NewName "AINativeStudio-SystemSetup.exe"
             }
           }
           
-          # List the renamed files
-          Write-Host "`nInstaller files:"
+          # List the final files
+          Write-Host "`nFinal installer files:"
           Get-ChildItem -Path ".build\win32-arm64" -Recurse -Filter "*.exe" | Format-Table FullName, Length
       
       - name: Upload User Setup Installer
@@ -324,9 +338,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $installers = Get-ChildItem -Path ainative-studio -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" -or $_.Name -like "*setup*" }
+          Write-Host "Looking for installer files..."
+          $userSetup = "ainative-studio/.build/win32-arm64/user-setup/AINativeStudio-UserSetup.exe"
+          $systemSetup = "ainative-studio/.build/win32-arm64/system-setup/AINativeStudio-SystemSetup.exe"
           
-          foreach ($installer in $installers) {
-            Write-Host "Uploading $($installer.Name) to release..."
-            gh release upload ${{ github.event.release.tag_name }} $installer.FullName --clobber
+          if (Test-Path $userSetup) {
+            Write-Host "Uploading User Setup installer..."
+            gh release upload ${{ github.event.release.tag_name }} $userSetup --clobber
+          } else {
+            Write-Host "⚠️ User Setup installer not found at $userSetup"
+          }
+          
+          if (Test-Path $systemSetup) {
+            Write-Host "Uploading System Setup installer..."
+            gh release upload ${{ github.event.release.tag_name }} $systemSetup --clobber
+          } else {
+            Write-Host "⚠️ System Setup installer not found at $systemSetup"
           }

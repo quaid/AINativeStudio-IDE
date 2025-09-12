@@ -330,11 +330,25 @@ jobs:
           $userSetup = ".build\win32-x64\user-setup\AINativeStudio-UserSetup.exe"
           $systemSetup = ".build\win32-x64\system-setup\AINativeStudio-SystemSetup.exe"
           
-          # If not found, check for VSCodeSetup.exe and rename them
+          # Rename AINativeStudio.exe to the expected names
+          $actualUserSetup = ".build\win32-x64\user-setup\AINativeStudio.exe"
+          $actualSystemSetup = ".build\win32-x64\system-setup\AINativeStudio.exe"
+          
+          if (Test-Path $actualUserSetup) {
+            Write-Host "Renaming $actualUserSetup to AINativeStudio-UserSetup.exe"
+            Rename-Item -Path $actualUserSetup -NewName "AINativeStudio-UserSetup.exe"
+          }
+          
+          if (Test-Path $actualSystemSetup) {
+            Write-Host "Renaming $actualSystemSetup to AINativeStudio-SystemSetup.exe"  
+            Rename-Item -Path $actualSystemSetup -NewName "AINativeStudio-SystemSetup.exe"
+          }
+          
+          # Also check for old VSCodeSetup.exe names (fallback)
           if (-not (Test-Path $userSetup)) {
             $oldUserSetup = ".build\win32-x64\user-setup\VSCodeSetup.exe"
             if (Test-Path $oldUserSetup) {
-              Write-Host "Renaming user installer to AINativeStudio-UserSetup.exe"
+              Write-Host "Renaming VSCode user installer to AINativeStudio-UserSetup.exe"
               Rename-Item -Path $oldUserSetup -NewName "AINativeStudio-UserSetup.exe"
             } else {
               Write-Host "⚠️ No user installer found at expected locations"
@@ -344,7 +358,7 @@ jobs:
           if (-not (Test-Path $systemSetup)) {
             $oldSystemSetup = ".build\win32-x64\system-setup\VSCodeSetup.exe"
             if (Test-Path $oldSystemSetup) {
-              Write-Host "Renaming system installer to AINativeStudio-SystemSetup.exe"
+              Write-Host "Renaming VSCode system installer to AINativeStudio-SystemSetup.exe"
               Rename-Item -Path $oldSystemSetup -NewName "AINativeStudio-SystemSetup.exe"
             } else {
               Write-Host "⚠️ No system installer found at expected locations"
