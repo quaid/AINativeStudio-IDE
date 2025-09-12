@@ -375,20 +375,18 @@ jobs:
       
       - name: Upload User Setup Installer
         uses: actions/upload-artifact@v4
-        if: hashFiles('ainative-studio/.build/win32-x64/user-setup/AINativeStudio-UserSetup.exe') != ''
         with:
           name: ainative-studio-win32-x64-user-setup
-          path: |
-            ainative-studio/.build/win32-x64/user-setup/AINativeStudio-UserSetup.exe
+          path: ainative-studio/.build/win32-x64/user-setup/AINativeStudio-UserSetup.exe
+          if-no-files-found: warn
           retention-days: 30
       
       - name: Upload System Setup Installer
         uses: actions/upload-artifact@v4
-        if: hashFiles('ainative-studio/.build/win32-x64/system-setup/AINativeStudio-SystemSetup.exe') != ''
         with:
           name: ainative-studio-win32-x64-system-setup
-          path: |
-            ainative-studio/.build/win32-x64/system-setup/AINativeStudio-SystemSetup.exe
+          path: ainative-studio/.build/win32-x64/system-setup/AINativeStudio-SystemSetup.exe
+          if-no-files-found: warn
           retention-days: 30
       
       - name: Upload installers to release
@@ -397,9 +395,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $installers = Get-ChildItem -Path ainative-studio -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" -or $_.Name -like "*setup*" }
+          Write-Host "Looking for installer files..."
+          $userSetup = "ainative-studio/.build/win32-x64/user-setup/AINativeStudio-UserSetup.exe"
+          $systemSetup = "ainative-studio/.build/win32-x64/system-setup/AINativeStudio-SystemSetup.exe"
           
-          foreach ($installer in $installers) {
-            Write-Host "Uploading $($installer.Name) to release..."
-            gh release upload ${{ github.event.release.tag_name }} $installer.FullName --clobber
+          if (Test-Path $userSetup) {
+            Write-Host "Uploading User Setup installer..."
+            gh release upload ${{ github.event.release.tag_name }} $userSetup --clobber
+          } else {
+            Write-Host "⚠️ User Setup installer not found at $userSetup"
+          }
+          
+          if (Test-Path $systemSetup) {
+            Write-Host "Uploading System Setup installer..."
+            gh release upload ${{ github.event.release.tag_name }} $systemSetup --clobber
+          } else {
+            Write-Host "⚠️ System Setup installer not found at $systemSetup"
           }
