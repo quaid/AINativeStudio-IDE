@@ -174,9 +174,6 @@ jobs:
           path: ainative-studio/ainative-studio-win32-arm64.zip
           retention-days: 7
 
-  # SignPath signing disabled - use manual signing instead
-  # Complete signing job commented out due to free tier limitations
-
   package:
     needs: build-windows
     runs-on: windows-latest
