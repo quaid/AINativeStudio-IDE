@@ -235,21 +235,22 @@ jobs:
       - name: Setup code signing certificate
         run: |
           # Import certificate from secrets
-          echo "${{ secrets.MACOS_DEVELOPER_CERTIFICATE }}" | base64 --decode > certificate.p12
+          echo "${{ secrets.MAC_DEV_ID_P12_BASE64 }}" | base64 --decode > certificate.p12
           
           # Create temporary keychain
-          security create-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          KEYCHAIN_PASSWORD="${{ secrets.MAC_DEV_ID_P12_PASSWORD }}"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
-          security unlock-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           
           # Import certificate
           security import certificate.p12 -k build.keychain \
-            -P "${{ secrets.MACOS_DEVELOPER_CERTIFICATE_KEY }}" \
+            -P "${{ secrets.MAC_DEV_ID_P12_PASSWORD }}" \
             -T /usr/bin/codesign \
             -T /usr/bin/security
           
           # Allow codesign to access keychain
-          security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           
           # Clean up certificate file
           rm certificate.p12
@@ -257,31 +258,45 @@ jobs:
       - name: Sign the application
         working-directory: ainative-studio
         run: |
-          # Set variables
-          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
-          APP_PATH="../${APP_NAME}.app"
-          ENTITLEMENTS_PATH="${{ vars.ENTITLEMENTS_PATH || 'ainative-studio/build/azure-pipelines/darwin/app-entitlements.plist' }}"
-          CERT_NAME="${{ vars.CERT_NAME || 'Developer ID Application' }}"
+          # Handle app name with spaces
+          APP_NAME="${{ vars.APP_NAME }}"
           
-          # Verify app exists
-          if [ ! -d "$APP_PATH" ]; then
-            echo "::error::App bundle not found at $APP_PATH"
+          # Find the actual app bundle (could be AINativeStudio.app from renaming)
+          if [ -d "../AINativeStudio.app" ]; then
+            APP_PATH="../AINativeStudio.app"
+          elif [ -d "../${APP_NAME}.app" ]; then
+            APP_PATH="../${APP_NAME}.app"
+          else
+            echo "::error::App bundle not found"
             echo "Looking for .app bundles..."
             find .. -maxdepth 3 -name "*.app" -type d || true
             exit 1
           fi
           
+          # Use the entitlements file from the repo
+          ENTITLEMENTS_PATH="build/azure-pipelines/darwin/app-entitlements.plist"
+          
           # Verify entitlements file exists
-          if [ ! -f "../$ENTITLEMENTS_PATH" ]; then
+          if [ ! -f "$ENTITLEMENTS_PATH" ]; then
             echo "::warning::Entitlements file not found at $ENTITLEMENTS_PATH, signing without entitlements"
             ENTITLEMENTS_ARG=""
           else
-            ENTITLEMENTS_ARG="--entitlements ../$ENTITLEMENTS_PATH"
+            ENTITLEMENTS_ARG="--entitlements $ENTITLEMENTS_PATH"
           fi
           
-          # Display signing identity
+          # Get the signing identity from the keychain
           echo "Available signing identities:"
-          security find-identity -p codesigning -v | cat
+          security find-identity -p codesigning -v build.keychain | cat
+          
+          # Extract the Developer ID Application identity with team ID
+          CERT_NAME=$(security find-identity -p codesigning -v build.keychain | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          
+          if [ -z "$CERT_NAME" ]; then
+            echo "::error::No Developer ID Application certificate found in keychain"
+            exit 1
+          fi
+          
+          echo "Using certificate: $CERT_NAME"
           
           # Sign the application with electron-osx-sign
           echo "Signing $APP_PATH with electron-osx-sign..."
