@@ -314,6 +314,88 @@ jobs:
           echo "Signature details:"
           codesign -dvvv "$APP_PATH" 2>&1 | head -20
       
+      - name: Notarize the application
+        working-directory: ainative-studio
+        run: |
+          # Find the signed app bundle
+          if [ -d "../AINativeStudio.app" ]; then
+            APP_PATH="../AINativeStudio.app"
+          elif [ -d "../${{ vars.APP_NAME }}.app" ]; then
+            APP_PATH="../${{ vars.APP_NAME }}.app"
+          else
+            echo "::error::App bundle not found for notarization"
+            exit 1
+          fi
+          
+          echo "Creating ZIP for notarization..."
+          cd ..
+          ZIP_NAME="AINativeStudio-arm64-for-notarization.zip"
+          ditto -c -k --keepParent "$(basename "$APP_PATH")" "ainative-studio/$ZIP_NAME"
+          
+          cd ainative-studio
+          
+          # Setup Apple API key
+          echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > AuthKey.p8
+          
+          echo "Uploading to Apple for notarization..."
+          
+          # Upload for notarization using xcrun notarytool
+          SUBMISSION_ID=$(xcrun notarytool submit "$ZIP_NAME" \
+            --key AuthKey.p8 \
+            --key-id "${{ secrets.APPLE_KEY_ID }}" \
+            --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
+            --output-format json \
+            --wait \
+            --timeout 30m | jq -r '.id')
+          
+          if [ "$SUBMISSION_ID" = "null" ] || [ -z "$SUBMISSION_ID" ]; then
+            echo "::error::Failed to get submission ID from notarization"
+            exit 1
+          fi
+          
+          echo "Submission ID: $SUBMISSION_ID"
+          
+          # Wait for notarization to complete and check status
+          echo "Waiting for notarization to complete..."
+          xcrun notarytool wait "$SUBMISSION_ID" \
+            --key AuthKey.p8 \
+            --key-id "${{ secrets.APPLE_KEY_ID }}" \
+            --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
+            --timeout 30m
+          
+          # Get the notarization status
+          STATUS=$(xcrun notarytool info "$SUBMISSION_ID" \
+            --key AuthKey.p8 \
+            --key-id "${{ secrets.APPLE_KEY_ID }}" \
+            --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
+            --output-format json | jq -r '.status')
+          
+          echo "Notarization status: $STATUS"
+          
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed with status: $STATUS"
+            # Get detailed log for debugging
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --key AuthKey.p8 \
+              --key-id "${{ secrets.APPLE_KEY_ID }}" \
+              --issuer "${{ secrets.APPLE_ISSUER_ID }}"
+            exit 1
+          fi
+          
+          echo "Notarization successful! Stapling ticket to app..."
+          
+          # Staple the notarization ticket
+          xcrun stapler staple "$APP_PATH"
+          
+          # Verify stapling
+          echo "Verifying stapled notarization..."
+          xcrun stapler validate "$APP_PATH"
+          
+          # Clean up
+          rm -f AuthKey.p8 "$ZIP_NAME"
+          
+          echo "✅ App successfully signed and notarized!"
+      
       - name: Create signed archive
         working-directory: ainative-studio
         run: |
