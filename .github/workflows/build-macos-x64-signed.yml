@@ -1,0 +1,398 @@
+name: Build macOS x64 (Signed)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-macos-x64:
+    runs-on: macos-13
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Configure Git
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            ainative-studio/package-lock.json
+            ainative-studio/build/package-lock.json
+      
+      - name: Install build dependencies
+        working-directory: ainative-studio/build
+        run: |
+          for i in {1..5}; do
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "npm ci in build/ failed too many times" >&2
+              exit 1
+            fi
+            echo "npm ci in build/ failed $i, trying again..."
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install dependencies
+        working-directory: ainative-studio
+        run: |
+          for i in {1..5}; do
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "npm ci failed too many times" >&2
+              exit 1
+            fi
+            echo "npm ci failed $i, trying again..."
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Cache node build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ainative-studio/node_modules/.cache
+            ainative-studio/extensions/*/node_modules/.cache
+          key: node-cache-${{ runner.os }}-x64-${{ hashFiles('ainative-studio/package-lock.json') }}
+          restore-keys: |
+            node-cache-${{ runner.os }}-x64-
+            node-cache-${{ runner.os }}-
+      
+      - name: Cache gulp cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gulp-cache
+          key: ${{ runner.os }}-gulp-${{ hashFiles('ainative-studio/package-lock.json', 'ainative-studio/build/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gulp-
+      
+      - name: Build React components
+        working-directory: ainative-studio
+        run: npm run buildreact
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+      
+      - name: Build extensions in parallel
+        working-directory: ainative-studio
+        run: |
+          # Build critical extensions first
+          npm run gulp compile-extension:configuration-editing &
+          npm run gulp compile-extension:css-language-features &
+          npm run gulp compile-extension:typescript-language-features &
+          npm run gulp compile-extension:git &
+          wait
+          
+          # Build remaining extensions in parallel batches
+          npm run gulp compile-extension:debug-auto-launch &
+          npm run gulp compile-extension:debug-server-ready &
+          npm run gulp compile-extension:emmet &
+          npm run gulp compile-extension:extension-editing &
+          wait
+          
+          npm run gulp compile-extension:git-base &
+          npm run gulp compile-extension:github &
+          npm run gulp compile-extension:github-authentication &
+          npm run gulp compile-extension:grunt &
+          wait
+          
+          npm run gulp compile-extension:gulp &
+          npm run gulp compile-extension:html-language-features &
+          npm run gulp compile-extension:ipynb &
+          npm run gulp compile-extension:jake &
+          wait
+          
+          npm run gulp compile-extension:json-language-features &
+          npm run gulp compile-extension:markdown-language-features &
+          npm run gulp compile-extension:markdown-math &
+          npm run gulp compile-extension:media-preview &
+          wait
+          
+          npm run gulp compile-extension:merge-conflict &
+          npm run gulp compile-extension:terminal-suggest &
+          npm run gulp compile-extension:microsoft-authentication &
+          npm run gulp compile-extension:notebook-renderers &
+          wait
+          
+          npm run gulp compile-extension:npm &
+          npm run gulp compile-extension:php-language-features &
+          npm run gulp compile-extension:references-view &
+          npm run gulp compile-extension:search-result &
+          wait
+          
+          npm run gulp compile-extension:simple-browser &
+          npm run gulp compile-extension:tunnel-forwarding &
+          npm run gulp compile-extension:vscode-api-tests &
+          npm run gulp compile-extension:vscode-colorize-tests &
+          wait
+          
+          # Finish remaining extensions
+          npm run gulp compile-extension:vscode-colorize-perf-tests || true
+          npm run gulp compile-extension:vscode-test-resolver || true
+          npm run gulp compile-extension:vscode-selfhost-test-provider || true
+          npm run gulp compile-extension:vscode-selfhost-import-aid || true
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+      
+      - name: Build client (non-minified for faster builds)
+        working-directory: ainative-studio
+        run: |
+          npm run gulp vscode-darwin-x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+          UV_THREADPOOL_SIZE: 64
+      
+      - name: Package
+        working-directory: ainative-studio
+        run: npm run gulp vscode-darwin-x64-ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Verify build output
+        run: |
+          if [ ! -d "VSCode-darwin-x64" ] && [ ! -d "../VSCode-darwin-x64" ]; then
+            echo "::error::Build output directory not found!"
+            echo "Contents of ainative-studio directory:"
+            ls -la
+            echo "Contents of parent directory:"
+            ls -la ../
+            exit 1
+          fi
+        working-directory: ainative-studio
+      
+      - name: Create archive
+        run: |
+          if [ -d "VSCode-darwin-x64" ]; then
+            cd VSCode-darwin-x64
+            tar -czf ../ainative-studio-darwin-x64.tar.gz .
+          elif [ -d "../VSCode-darwin-x64" ]; then
+            cd ../VSCode-darwin-x64
+            tar -czf ../ainative-studio/ainative-studio-darwin-x64.tar.gz .
+          fi
+        working-directory: ainative-studio
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64
+          path: ainative-studio/ainative-studio-darwin-x64.tar.gz
+          retention-days: 7
+
+  sign-macos-x64:
+    needs: build-macos-x64
+    runs-on: macos-13
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64
+          path: ainative-studio/
+      
+      - name: Extract build
+        working-directory: ainative-studio
+        run: |
+          echo "Extracting build artifact..."
+          tar -xzf ainative-studio-darwin-x64.tar.gz -C ../
+          
+          # Look for app bundle in various possible locations
+          if [ -d "../AINative Studio.app" ]; then
+            echo "Found 'AINative Studio.app', renaming to 'AINativeStudio.app'"
+            mv "../AINative Studio.app" ../AINativeStudio.app
+          elif [ -d "../Void.app" ]; then
+            echo "Found Void.app, renaming to AINativeStudio.app"
+            mv ../Void.app ../AINativeStudio.app
+          elif [ -d "../VSCode-darwin-x64/Void.app" ]; then
+            echo "Found Void.app in VSCode-darwin-x64 directory"
+            mv ../VSCode-darwin-x64/Void.app ../AINativeStudio.app
+          elif [ -d "../VSCode-darwin-x64" ]; then
+            echo "Found VSCode-darwin-x64 directory, looking for .app bundle inside"
+            app=$(find ../VSCode-darwin-x64 -name "*.app" -type d | head -1)
+            if [ -n "$app" ]; then
+              echo "Found app bundle: $app"
+              mv "$app" ../AINativeStudio.app
+            else
+              echo "No .app bundle found in VSCode-darwin-x64 directory"
+            fi
+          else
+            echo "No recognizable app structure found"
+          fi
+      
+      - name: Setup code signing certificate
+        run: |
+          # Import certificate from secrets
+          echo "${{ secrets.MACOS_DEVELOPER_CERTIFICATE }}" | base64 --decode > certificate.p12
+          
+          # Create temporary keychain
+          security create-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          
+          # Import certificate
+          security import certificate.p12 -k build.keychain \
+            -P "${{ secrets.MACOS_DEVELOPER_CERTIFICATE_KEY }}" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          
+          # Allow codesign to access keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          
+          # Clean up certificate file
+          rm certificate.p12
+      
+      - name: Sign the application
+        working-directory: ainative-studio
+        run: |
+          # Set variables
+          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
+          APP_PATH="../${APP_NAME}.app"
+          ENTITLEMENTS_PATH="${{ vars.ENTITLEMENTS_PATH || 'ainative-studio/build/azure-pipelines/darwin/app-entitlements.plist' }}"
+          CERT_NAME="${{ vars.CERT_NAME || 'Developer ID Application' }}"
+          
+          # Verify app exists
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::App bundle not found at $APP_PATH"
+            echo "Looking for .app bundles..."
+            find .. -maxdepth 3 -name "*.app" -type d || true
+            exit 1
+          fi
+          
+          # Verify entitlements file exists
+          if [ ! -f "../$ENTITLEMENTS_PATH" ]; then
+            echo "::warning::Entitlements file not found at $ENTITLEMENTS_PATH, signing without entitlements"
+            ENTITLEMENTS_ARG=""
+          else
+            ENTITLEMENTS_ARG="--entitlements ../$ENTITLEMENTS_PATH"
+          fi
+          
+          # Display signing identity
+          echo "Available signing identities:"
+          security find-identity -p codesigning -v | cat
+          
+          # Sign the application with electron-osx-sign
+          echo "Signing $APP_PATH with electron-osx-sign..."
+          npx --yes electron-osx-sign "$APP_PATH" \
+            --identity="$CERT_NAME" \
+            --hardened-runtime=true \
+            --no-gatekeeper-assess \
+            $ENTITLEMENTS_ARG
+          
+          # Verify the signature
+          echo "Verifying signature..."
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          
+          # Check signature details
+          echo "Signature details:"
+          codesign -dvvv "$APP_PATH" 2>&1 | head -20
+      
+      - name: Create signed archive
+        working-directory: ainative-studio
+        run: |
+          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
+          tar -czf ainative-studio-darwin-x64-signed.tar.gz -C .. "${APP_NAME}.app"
+      
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64-signed
+          path: ainative-studio/ainative-studio-darwin-x64-signed.tar.gz
+          retention-days: 7
+
+  package:
+    needs: sign-macos-x64
+    runs-on: macos-13
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download signed artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64-signed
+          path: ainative-studio/
+      
+      - name: Extract signed build
+        working-directory: ainative-studio
+        run: |
+          echo "Extracting signed build artifact..."
+          tar -xzf ainative-studio-darwin-x64-signed.tar.gz -C ../
+          echo "Contents after extraction:"
+          ls -la ../
+      
+      - name: Create ZIP archive
+        working-directory: ainative-studio
+        run: |
+          echo "Creating ZIP archive..."
+          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
+          if [ -d "../${APP_NAME}.app" ]; then
+            cd ..
+            zip -r -y ainative-studio/${APP_NAME}-darwin-x64-signed.zip "${APP_NAME}.app"
+            echo "ZIP archive created successfully"
+          else
+            echo "ERROR: No app bundle found - cannot create ZIP"
+            exit 1
+          fi
+      
+      - name: Create DMG
+        working-directory: ainative-studio
+        run: |
+          echo "Creating signed DMG..."
+          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
+          
+          # Create a temporary directory for DMG contents
+          mkdir -p dmg-temp
+          
+          # Copy the signed app bundle
+          if [ -d "../${APP_NAME}.app" ]; then
+            cp -R "../${APP_NAME}.app" dmg-temp/
+            echo "Copied ${APP_NAME}.app to DMG contents"
+          else
+            echo "ERROR: No app bundle found - cannot create DMG"
+            rm -rf dmg-temp
+            exit 1
+          fi
+          
+          # Create Applications symlink
+          ln -s /Applications dmg-temp/Applications
+          
+          # Create DMG
+          hdiutil create -volname "${APP_NAME}" \
+                        -srcfolder dmg-temp \
+                        -ov -format UDZO \
+                        ${APP_NAME}-darwin-x64-signed.dmg
+          
+          # Clean up
+          rm -rf dmg-temp
+          
+          echo "DMG created successfully"
+      
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64-signed-zip
+          path: ainative-studio/*-darwin-x64-signed.zip
+          retention-days: 30
+      
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-darwin-x64-signed-dmg
+          path: ainative-studio/*-darwin-x64-signed.dmg
+          retention-days: 30
