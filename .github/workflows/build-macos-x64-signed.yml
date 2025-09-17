@@ -323,69 +323,27 @@ jobs:
           
           echo "Using certificate: $CERT_NAME"
           
-          # Sign the application using codesign directly (much faster)
-          echo "Signing $APP_PATH with codesign..."
+          # Sign the application using electron-osx-sign (designed for Electron/VS Code)
+          echo "Signing $APP_PATH with electron-osx-sign..."
           echo "App size before signing:"
           du -sh "$APP_PATH"
           
           # Time the signing process
           SIGN_START=$(date +%s)
           
-          # Hybrid approach: Pre-sign problematic binaries, then deep sign
-          echo "Pre-signing problematic binaries that Apple flagged..."
-          
-          # Pre-sign libffmpeg.dylib (Apple flagged this)
-          LIBFFMPEG_PATH="$APP_PATH/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libffmpeg.dylib"
-          if [ -f "$LIBFFMPEG_PATH" ]; then
-            echo "Signing libffmpeg.dylib..."
-            codesign --force --sign "$CERT_NAME" --options runtime --timestamp "$LIBFFMPEG_PATH"
-          else
-            echo "Warning: libffmpeg.dylib not found at expected path"
-          fi
-          
-          # Pre-sign ShipIt binary (Apple flagged this)
-          SHIPIT_PATH="$APP_PATH/Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt"
-          if [ -f "$SHIPIT_PATH" ]; then
-            echo "Signing ShipIt binary..."
-            codesign --force --sign "$CERT_NAME" --options runtime --timestamp "$SHIPIT_PATH"
-          else
-            echo "Warning: ShipIt binary not found at expected path"
-          fi
-          
-          # Now deep sign everything with entitlements
-          echo "Performing deep signing of entire app..."
+          # Use electron-osx-sign - the right tool for VS Code forks
+          echo "Using electron-osx-sign for comprehensive Electron app signing..."
           if [ -n "$ENTITLEMENTS_ARG" ]; then
-            if codesign --deep --force --verify --verbose \
-              --sign "$CERT_NAME" \
-              --options runtime \
-              --entitlements "$ENTITLEMENTS_PATH" \
-              --timestamp \
-              "$APP_PATH" 2>&1; then
-              echo "✅ Hybrid signing successful"
-            else
-              echo "⚠️ Hybrid signing failed, falling back to electron-osx-sign"
-              # Fallback to electron-osx-sign if hybrid approach fails
-              npx --yes electron-osx-sign "$APP_PATH" \
-                --identity="$CERT_NAME" \
-                --hardened-runtime=true \
-                --no-gatekeeper-assess \
-                $ENTITLEMENTS_ARG
-            fi
+            npx --yes electron-osx-sign "$APP_PATH" \
+              --identity="$CERT_NAME" \
+              --hardened-runtime=true \
+              --no-gatekeeper-assess \
+              $ENTITLEMENTS_ARG
           else
-            if codesign --deep --force --verify --verbose \
-              --sign "$CERT_NAME" \
-              --options runtime \
-              --timestamp \
-              "$APP_PATH" 2>&1; then
-              echo "✅ Hybrid signing successful"
-            else
-              echo "⚠️ Hybrid signing failed, falling back to electron-osx-sign"
-              # Fallback to electron-osx-sign if hybrid approach fails
-              npx --yes electron-osx-sign "$APP_PATH" \
-                --identity="$CERT_NAME" \
-                --hardened-runtime=true \
-                --no-gatekeeper-assess
-            fi
+            npx --yes electron-osx-sign "$APP_PATH" \
+              --identity="$CERT_NAME" \
+              --hardened-runtime=true \
+              --no-gatekeeper-assess
           fi
           
           SIGN_END=$(date +%s)
