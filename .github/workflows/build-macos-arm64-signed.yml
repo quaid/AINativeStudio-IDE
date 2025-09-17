@@ -190,7 +190,7 @@ jobs:
   sign-macos-arm64:
     needs: build-macos-arm64
     runs-on: macos-14
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -323,13 +323,33 @@ jobs:
           
           echo "Using certificate: $CERT_NAME"
           
-          # Sign the application with electron-osx-sign
-          echo "Signing $APP_PATH with electron-osx-sign..."
-          npx --yes electron-osx-sign "$APP_PATH" \
-            --identity="$CERT_NAME" \
-            --hardened-runtime=true \
-            --no-gatekeeper-assess \
-            $ENTITLEMENTS_ARG
+          # Sign the application using codesign directly (much faster)
+          echo "Signing $APP_PATH with codesign..."
+          echo "App size before signing:"
+          du -sh "$APP_PATH"
+          
+          # Time the signing process
+          SIGN_START=$(date +%s)
+          
+          # Sign with --deep to handle all nested code in one pass
+          if [ -n "$ENTITLEMENTS_ARG" ]; then
+            codesign --deep --force --verify --verbose \
+              --sign "$CERT_NAME" \
+              --options runtime \
+              --entitlements "$ENTITLEMENTS_PATH" \
+              --timestamp \
+              "$APP_PATH"
+          else
+            codesign --deep --force --verify --verbose \
+              --sign "$CERT_NAME" \
+              --options runtime \
+              --timestamp \
+              "$APP_PATH"
+          fi
+          
+          SIGN_END=$(date +%s)
+          SIGN_DURATION=$((SIGN_END - SIGN_START))
+          echo "Signing completed in ${SIGN_DURATION} seconds"
           
           # Verify the signature
           echo "Verifying signature..."
@@ -363,18 +383,22 @@ jobs:
           echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > AuthKey.p8
           
           echo "Uploading to Apple for notarization..."
+          echo "ZIP file size: $(du -h "$ZIP_NAME" | cut -f1)"
           
-          # Upload for notarization using xcrun notarytool
-          SUBMISSION_ID=$(xcrun notarytool submit "$ZIP_NAME" \
+          # Submit without --wait to get submission ID immediately
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$ZIP_NAME" \
             --key AuthKey.p8 \
             --key-id "${{ secrets.APPLE_KEY_ID }}" \
             --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
-            --output-format json \
-            --wait \
-            --timeout 30m | jq -r '.id')
+            --output-format json 2>&1)
+          
+          echo "Submit output: $SUBMIT_OUTPUT"
+          
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | jq -r '.id' 2>/dev/null)
           
           if [ "$SUBMISSION_ID" = "null" ] || [ -z "$SUBMISSION_ID" ]; then
             echo "::error::Failed to get submission ID from notarization"
+            echo "::error::Full output was: $SUBMIT_OUTPUT"
             exit 1
           fi
           
@@ -386,7 +410,7 @@ jobs:
             --key AuthKey.p8 \
             --key-id "${{ secrets.APPLE_KEY_ID }}" \
             --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
-            --timeout 30m
+            --timeout 45m
           
           # Get the notarization status
           STATUS=$(xcrun notarytool info "$SUBMISSION_ID" \
