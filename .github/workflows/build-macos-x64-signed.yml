@@ -529,10 +529,10 @@ jobs:
           ln -s /Applications dmg-temp/Applications
           
           # Create DMG
-          hdiutil create -volname "${APP_NAME}" \
+          hdiutil create -volname "${ACTUAL_APP_NAME}" \
                         -srcfolder dmg-temp \
                         -ov -format UDZO \
-                        ${APP_NAME}-darwin-x64-signed.dmg
+                        "${ACTUAL_APP_NAME}-darwin-x64-signed.dmg"
           
           # Clean up
           rm -rf dmg-temp
