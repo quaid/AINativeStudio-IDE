@@ -190,7 +190,7 @@ jobs:
   sign-macos-x64:
     needs: build-macos-x64
     runs-on: macos-13
-    timeout-minutes: 90
+    timeout-minutes: 240
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -430,7 +430,7 @@ jobs:
             --key AuthKey.p8 \
             --key-id "${{ secrets.APPLE_KEY_ID }}" \
             --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
-            --timeout 45m
+            --timeout 210m
           
           # Get the notarization status
           STATUS=$(xcrun notarytool info "$SUBMISSION_ID" \
