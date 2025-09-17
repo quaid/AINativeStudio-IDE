@@ -331,20 +331,40 @@ jobs:
           # Time the signing process
           SIGN_START=$(date +%s)
           
-          # Sign with --deep to handle all nested code in one pass
+          # First attempt: Sign with --deep to handle all nested code in one pass
+          echo "Attempting fast deep signing..."
           if [ -n "$ENTITLEMENTS_ARG" ]; then
-            codesign --deep --force --verify --verbose \
+            if codesign --deep --force --verify --verbose \
               --sign "$CERT_NAME" \
               --options runtime \
               --entitlements "$ENTITLEMENTS_PATH" \
               --timestamp \
-              "$APP_PATH"
+              "$APP_PATH" 2>&1; then
+              echo "✅ Deep signing successful"
+            else
+              echo "⚠️ Deep signing failed, falling back to electron-osx-sign"
+              # Fallback to electron-osx-sign if direct codesign fails
+              npx --yes electron-osx-sign "$APP_PATH" \
+                --identity="$CERT_NAME" \
+                --hardened-runtime=true \
+                --no-gatekeeper-assess \
+                $ENTITLEMENTS_ARG
+            fi
           else
-            codesign --deep --force --verify --verbose \
+            if codesign --deep --force --verify --verbose \
               --sign "$CERT_NAME" \
               --options runtime \
               --timestamp \
-              "$APP_PATH"
+              "$APP_PATH" 2>&1; then
+              echo "✅ Deep signing successful"
+            else
+              echo "⚠️ Deep signing failed, falling back to electron-osx-sign"
+              # Fallback to electron-osx-sign if direct codesign fails
+              npx --yes electron-osx-sign "$APP_PATH" \
+                --identity="$CERT_NAME" \
+                --hardened-runtime=true \
+                --no-gatekeeper-assess
+            fi
           fi
           
           SIGN_END=$(date +%s)
