@@ -447,8 +447,19 @@ jobs:
       - name: Create signed archive
         working-directory: ainative-studio
         run: |
-          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
-          tar -czf ainative-studio-darwin-arm64-signed.tar.gz -C .. "${APP_NAME}.app"
+          # Find the actual app name (it was renamed during signing steps)
+          if [ -d "../AINativeStudio.app" ]; then
+            ACTUAL_APP_NAME="AINativeStudio"
+          elif [ -d "../AINative Studio.app" ]; then
+            ACTUAL_APP_NAME="AINative Studio"
+          else
+            echo "Error: Cannot find signed app bundle"
+            ls -la ../
+            exit 1
+          fi
+          
+          echo "Found app: ${ACTUAL_APP_NAME}.app"
+          tar -czf ainative-studio-darwin-arm64-signed.tar.gz -C .. "${ACTUAL_APP_NAME}.app"
       
       - name: Upload signed artifact
         uses: actions/upload-artifact@v4
@@ -485,34 +496,45 @@ jobs:
         working-directory: ainative-studio
         run: |
           echo "Creating ZIP archive..."
-          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
-          if [ -d "../${APP_NAME}.app" ]; then
-            cd ..
-            zip -r -y ainative-studio/${APP_NAME}-darwin-arm64-signed.zip "${APP_NAME}.app"
-            echo "ZIP archive created successfully"
+          # Find the actual app name
+          if [ -d "../AINativeStudio.app" ]; then
+            ACTUAL_APP_NAME="AINativeStudio"
+          elif [ -d "../AINative Studio.app" ]; then
+            ACTUAL_APP_NAME="AINative Studio"
           else
             echo "ERROR: No app bundle found - cannot create ZIP"
+            ls -la ../
             exit 1
           fi
+          
+          echo "Found app: ${ACTUAL_APP_NAME}.app"
+          cd ..
+          zip -r -y ainative-studio/${ACTUAL_APP_NAME}-darwin-arm64-signed.zip "${ACTUAL_APP_NAME}.app"
+          echo "ZIP archive created successfully"
       
       - name: Create DMG
         working-directory: ainative-studio
         run: |
           echo "Creating signed DMG..."
-          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
+          # Find the actual app name
+          if [ -d "../AINativeStudio.app" ]; then
+            ACTUAL_APP_NAME="AINativeStudio"
+          elif [ -d "../AINative Studio.app" ]; then
+            ACTUAL_APP_NAME="AINative Studio"
+          else
+            echo "ERROR: No app bundle found - cannot create DMG"
+            ls -la ../
+            exit 1
+          fi
+          
+          echo "Found app: ${ACTUAL_APP_NAME}.app"
           
           # Create a temporary directory for DMG contents
           mkdir -p dmg-temp
           
           # Copy the signed app bundle
-          if [ -d "../${APP_NAME}.app" ]; then
-            cp -R "../${APP_NAME}.app" dmg-temp/
-            echo "Copied ${APP_NAME}.app to DMG contents"
-          else
-            echo "ERROR: No app bundle found - cannot create DMG"
-            rm -rf dmg-temp
-            exit 1
-          fi
+          cp -R "../${ACTUAL_APP_NAME}.app" dmg-temp/
+          echo "Copied ${ACTUAL_APP_NAME}.app to DMG contents"
           
           # Create Applications symlink
           ln -s /Applications dmg-temp/Applications

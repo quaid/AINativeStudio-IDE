@@ -447,8 +447,19 @@ jobs:
       - name: Create signed archive
         working-directory: ainative-studio
         run: |
-          APP_NAME="${{ vars.APP_NAME || 'AINativeStudio' }}"
-          tar -czf ainative-studio-darwin-x64-signed.tar.gz -C .. "${APP_NAME}.app"
+          # Find the actual app name (it was renamed during signing steps)
+          if [ -d "../AINativeStudio.app" ]; then
+            ACTUAL_APP_NAME="AINativeStudio"
+          elif [ -d "../AINative Studio.app" ]; then
+            ACTUAL_APP_NAME="AINative Studio"
+          else
+            echo "Error: Cannot find signed app bundle"
+            ls -la ../
+            exit 1
+          fi
+          
+          echo "Found app: ${ACTUAL_APP_NAME}.app"
+          tar -czf ainative-studio-darwin-x64-signed.tar.gz -C .. "${ACTUAL_APP_NAME}.app"
       
       - name: Upload signed artifact
         uses: actions/upload-artifact@v4
