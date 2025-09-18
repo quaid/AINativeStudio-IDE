@@ -274,10 +274,15 @@ jobs:
           [Desktop Entry]
           Type=Application
           Name=AINative Studio
+          GenericName=Code Editor
           Comment=AI-powered code editor
-          Exec=code
+          Exec=code %F
           Icon=ainative-studio
-          Categories=Development;IDE;
+          Categories=Development;IDE;TextEditor;
+          MimeType=text/plain;text/x-chdr;text/x-csrc;text/x-c++hdr;text/x-c++src;text/x-java;text/x-dsrc;text/x-pascal;text/x-perl;text/x-python;application/x-php;application/x-httpd-php3;application/x-httpd-php4;application/x-httpd-php5;application/javascript;application/json;text/css;text/html;text/xml;
+          Keywords=code;development;programming;ai;editor;ide;ainative;studio;
+          StartupNotify=true
+          StartupWMClass=ainative-studio
           EOF
           
           # Copy logo from ai_native_studio_icons directory
@@ -364,10 +369,15 @@ jobs:
           [Desktop Entry]
           Type=Application
           Name=AINative Studio
+          GenericName=Code Editor
           Comment=AI-powered code editor
-          Exec=ainative-studio
+          Exec=ainative-studio %F
           Icon=ainative-studio
-          Categories=Development;IDE;
+          Categories=Development;IDE;TextEditor;
+          MimeType=text/plain;text/x-chdr;text/x-csrc;text/x-c++hdr;text/x-c++src;text/x-java;text/x-dsrc;text/x-pascal;text/x-perl;text/x-python;application/x-php;application/x-httpd-php3;application/x-httpd-php4;application/x-httpd-php5;application/javascript;application/json;text/css;text/html;text/xml;
+          Keywords=code;development;programming;ai;editor;ide;ainative;studio;
+          StartupNotify=true
+          StartupWMClass=ainative-studio
           EOF
           
           # Create control file with enhanced description
@@ -483,10 +493,15 @@ jobs:
           [Desktop Entry]
           Type=Application
           Name=AINative Studio
+          GenericName=Code Editor
           Comment=AI-powered code editor
-          Exec=ainative-studio
+          Exec=ainative-studio %F
           Icon=ainative-studio
-          Categories=Development;IDE;
+          Categories=Development;IDE;TextEditor;
+          MimeType=text/plain;text/x-chdr;text/x-csrc;text/x-c++hdr;text/x-c++src;text/x-java;text/x-dsrc;text/x-pascal;text/x-perl;text/x-python;application/x-php;application/x-httpd-php3;application/x-httpd-php4;application/x-httpd-php5;application/javascript;application/json;text/css;text/html;text/xml;
+          Keywords=code;development;programming;ai;editor;ide;ainative;studio;
+          StartupNotify=true
+          StartupWMClass=ainative-studio
           DESKTOP
           
           %files
