@@ -444,7 +444,7 @@ jobs:
           Source1:        logo.png
           
           BuildArch:      x86_64
-          Requires:       nss, atk, libXkbfile, libsecret
+          Requires:       nss, atk, libXkbfile, libsecret, libXtst
           
           %description
           AINative Studio is a revolutionary AI-powered code editor built on the
