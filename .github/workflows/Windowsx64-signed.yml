@@ -156,10 +156,82 @@ jobs:
             exit 1
           }
       
+      # ===== CODE SIGNING SECTION =====
+      - name: Import signing certificate
+        if: env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          Write-Host "Importing code signing certificate..."
+
+          # Decode certificate from base64
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          $certPath = "$env:TEMP\codesign.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+
+          # Import certificate to certificate store
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+
+          Write-Host "Certificate imported with thumbprint: $($cert.Thumbprint)"
+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+          # Clean up temp file
+          Remove-Item $certPath -Force
+
+      - name: Sign main executable
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing main executable..."
+          $exePath = "../VSCode-win32-x64/AINativeStudio.exe"
+
+          if (Test-Path $exePath) {
+            & "${{ github.workspace }}/scripts/windows-signing/sign-executable.ps1" `
+              -FilePath $exePath `
+              -Thumbprint $env:CERT_THUMBPRINT `
+              -Description "AINative Studio IDE"
+          } else {
+            Write-Host "Main executable not found at: $exePath"
+          }
+
+      - name: Sign Node.js executable
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing Node.js executable..."
+          $nodePath = "../VSCode-win32-x64/node.exe"
+
+          if (Test-Path $nodePath) {
+            & "${{ github.workspace }}/scripts/windows-signing/sign-executable.ps1" `
+              -FilePath $nodePath `
+              -Thumbprint $env:CERT_THUMBPRINT `
+              -Description "Node.js Runtime for AINative Studio"
+          }
+
+      - name: Sign CLI executable
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing CLI executable..."
+          $cliPath = "../VSCode-win32-x64/bin/code.exe"
+
+          if (Test-Path $cliPath) {
+            & "${{ github.workspace }}/scripts/windows-signing/sign-executable.ps1" `
+              -FilePath $cliPath `
+              -Thumbprint $env:CERT_THUMBPRINT `
+              -Description "AINative Studio CLI"
+          }
+
       # NOTE: UAC manifest is handled by Electron's build process and Inno Setup
       # Direct modification with rcedit was causing executable corruption
       # Electron apps default to user-level execution (no UAC prompts)
-      
+
       - name: Create archive
         working-directory: ainative-studio
         shell: pwsh
@@ -361,10 +433,71 @@ jobs:
             Write-Host "❌ System installer missing: $systemSetup"
           }
       
+      # ===== SIGN INSTALLERS =====
+      - name: Import signing certificate for installers
+        if: env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          Write-Host "Importing code signing certificate for installer signing..."
+
+          # Decode certificate from base64
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          $certPath = "$env:TEMP\codesign.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+
+          # Import certificate to certificate store
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+
+          Write-Host "Certificate imported with thumbprint: $($cert.Thumbprint)"
+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+          # Clean up temp file
+          Remove-Item $certPath -Force
+
+      - name: Sign User Setup installer
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing User Setup installer..."
+          $userSetup = ".build\win32-x64\user-setup\AINativeStudio-UserSetup.exe"
+
+          if (Test-Path $userSetup) {
+            & "${{ github.workspace }}/scripts/windows-signing/sign-executable.ps1" `
+              -FilePath $userSetup `
+              -Thumbprint $env:CERT_THUMBPRINT `
+              -Description "AINative Studio User Installer"
+            Write-Host "✅ User installer signed successfully"
+          } else {
+            Write-Host "⚠️ User installer not found for signing"
+          }
+
+      - name: Sign System Setup installer
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing System Setup installer..."
+          $systemSetup = ".build\win32-x64\system-setup\AINativeStudio-SystemSetup.exe"
+
+          if (Test-Path $systemSetup) {
+            & "${{ github.workspace }}/scripts/windows-signing/sign-executable.ps1" `
+              -FilePath $systemSetup `
+              -Thumbprint $env:CERT_THUMBPRINT `
+              -Description "AINative Studio System Installer"
+            Write-Host "✅ System installer signed successfully"
+          } else {
+            Write-Host "⚠️ System installer not found for signing"
+          }
+
       # NOTE: UAC manifest for installers is handled by Inno Setup configuration
       # PrivilegesRequired=lowest in .iss file ensures no UAC prompts for user installer
       # System installer requires admin by design (installs to Program Files)
-      
+
       # ===== Create ZIP packages to avoid MOTW =====
       - name: Create ZIP packages for MOTW avoidance
         working-directory: ainative-studio
