@@ -156,51 +156,9 @@ jobs:
             exit 1
           }
       
-      # ===== NEW: Set UAC Manifest for Executable =====
-      - name: Set UAC manifest for executable
-        working-directory: ainative-studio
-        shell: pwsh
-        run: |
-          Write-Host "Setting UAC manifest for executable..."
-          
-          # Download rcedit if not available
-          $rceditPath = "rcedit.exe"
-          if (-not (Test-Path $rceditPath)) {
-            Write-Host "Downloading rcedit..."
-            Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile $rceditPath
-          }
-          
-          # Find the main executable
-          $exePath = if (Test-Path "../VSCode-win32-x64/void.exe") { 
-            "../VSCode-win32-x64/void.exe" 
-          } elseif (Test-Path "VSCode-win32-x64/void.exe") { 
-            "VSCode-win32-x64/void.exe" 
-          } else { 
-            $null 
-          }
-          
-          if ($exePath) {
-            Write-Host "Found executable at: $exePath"
-            
-            # Set UAC execution level to asInvoker (no admin prompt)
-            & .\$rceditPath "$exePath" --set-requested-execution-level "asInvoker"
-            Write-Host "✅ Set UAC manifest: asInvoker (no elevation required)"
-            
-            # Also set version info for better reputation
-            & .\$rceditPath "$exePath" `
-              --set-version-string "CompanyName" "AINative Studio" `
-              --set-version-string "FileDescription" "AINative Studio - AI-powered code editor" `
-              --set-version-string "ProductName" "AINative Studio" `
-              --set-version-string "InternalName" "ainative-studio" `
-              --set-version-string "OriginalFilename" "void.exe" `
-              --set-version-string "LegalCopyright" "Copyright AINative Studio Team" `
-              --set-file-version "1.99.3.0" `
-              --set-product-version "1.99.3.0"
-            
-            Write-Host "✅ Updated executable metadata"
-          } else {
-            Write-Host "⚠️ Could not find void.exe to set UAC manifest"
-          }
+      # NOTE: UAC manifest is handled by Electron's build process and Inno Setup
+      # Direct modification with rcedit was causing executable corruption
+      # Electron apps default to user-level execution (no UAC prompts)
       
       - name: Create archive
         working-directory: ainative-studio
@@ -403,40 +361,11 @@ jobs:
             Write-Host "❌ System installer missing: $systemSetup"
           }
       
-      # ===== NEW: Set UAC Manifest for Installers =====
-      - name: Set UAC manifest for installers
-        working-directory: ainative-studio
-        shell: pwsh
-        run: |
-          Write-Host "Setting UAC manifest for installers..."
-          
-          # Download rcedit if not available
-          $rceditPath = "rcedit.exe"
-          if (-not (Test-Path $rceditPath)) {
-            Write-Host "Downloading rcedit..."
-            Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile $rceditPath
-          }
-          
-          # Set UAC manifest for user installer (already set to lowest in Inno, but double-check)
-          $userSetup = ".build\win32-x64\user-setup\AINativeStudio-UserSetup.exe"
-          if (Test-Path $userSetup) {
-            Write-Host "Setting UAC manifest for user installer..."
-            & .\$rceditPath "$userSetup" --set-requested-execution-level "asInvoker"
-            Write-Host "✅ User installer set to asInvoker"
-          }
-          
-          # System installer needs admin, but we can still set metadata
-          $systemSetup = ".build\win32-x64\system-setup\AINativeStudio-SystemSetup.exe"
-          if (Test-Path $systemSetup) {
-            Write-Host "Setting metadata for system installer..."
-            & .\$rceditPath "$systemSetup" `
-              --set-version-string "CompanyName" "AINative Studio" `
-              --set-version-string "FileDescription" "AINative Studio Installer" `
-              --set-version-string "ProductName" "AINative Studio"
-            Write-Host "✅ System installer metadata updated"
-          }
+      # NOTE: UAC manifest for installers is handled by Inno Setup configuration
+      # PrivilegesRequired=lowest in .iss file ensures no UAC prompts for user installer
+      # System installer requires admin by design (installs to Program Files)
       
-      # ===== NEW: Create ZIP packages to avoid MOTW =====
+      # ===== Create ZIP packages to avoid MOTW =====
       - name: Create ZIP packages for MOTW avoidance
         working-directory: ainative-studio
         shell: pwsh
