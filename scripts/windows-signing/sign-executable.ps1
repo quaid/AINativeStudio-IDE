@@ -31,17 +31,6 @@ function Sign-File {
     Write-Host "Signing file: $File" -ForegroundColor Cyan
 
     try {
-        # Build signtool arguments
-        $signToolArgs = @(
-            "sign",
-            "/fd", "SHA256",
-            "/td", "SHA256",
-            "/tr", $TimestampServer,
-            "/d", $Description,
-            "/sha1", $Certificate.Thumbprint,
-            "`"$File`""
-        )
-
         # Try to find signtool.exe
         $signTool = ""
 
@@ -85,14 +74,18 @@ function Sign-File {
 
         Write-Host "Using signtool at: $signTool" -ForegroundColor Gray
 
-        # Execute signtool
-        $process = Start-Process -FilePath $signTool -ArgumentList $signToolArgs -Wait -PassThru -NoNewWindow
+        # Use & operator for better argument handling with spaces
+        $result = & $signTool sign /fd SHA256 /td SHA256 /tr $TimestampServer /d "$Description" /sha1 $($Certificate.Thumbprint) "$File" 2>&1
+        $exitCode = $LASTEXITCODE
 
-        if ($process.ExitCode -eq 0) {
+        # Output signtool result
+        $result | ForEach-Object { Write-Host $_ }
+
+        if ($exitCode -eq 0) {
             Write-Host "Successfully signed: $File" -ForegroundColor Green
             return $true
         } else {
-            Write-Host "Signtool failed with exit code: $($process.ExitCode)" -ForegroundColor Red
+            Write-Host "Signtool failed with exit code: $exitCode" -ForegroundColor Red
             return $false
         }
     }
