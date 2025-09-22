@@ -164,12 +164,41 @@ jobs:
               }
             }
 
-      - name: Fix file permissions and list artifacts
+      - name: Fix file permissions and rename duplicate installers
         run: |
           echo "=== Downloaded Artifacts ==="
           if [ -d "./artifacts" ]; then
             # Make all AppImage files executable
             find ./artifacts -name "*.AppImage" -exec chmod +x {} \;
+            
+            # Rename Windows installers to include architecture
+            echo "=== Renaming Windows installers ==="
+            
+            # Rename x64 installers
+            if [ -f "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" ]; then
+              mv "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" \
+                 "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup-x64.exe"
+              echo "Renamed x64 system setup installer"
+            fi
+            
+            if [ -f "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" ]; then
+              mv "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" \
+                 "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup-x64.exe"
+              echo "Renamed x64 user setup installer"
+            fi
+            
+            # Rename ARM64 installers  
+            if [ -f "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" ]; then
+              mv "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" \
+                 "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup-arm64.exe"
+              echo "Renamed arm64 system setup installer"
+            fi
+            
+            if [ -f "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" ]; then
+              mv "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" \
+                 "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup-arm64.exe"
+              echo "Renamed arm64 user setup installer"
+            fi
             
             # List all artifacts
             find ./artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) | while read file; do
