@@ -251,6 +251,7 @@ jobs:
           body: ${{ steps.release-body.outputs.body }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
+          fail_on_unmatched_files: false
           files: |
             ./artifacts/**/*.tar.gz
             ./artifacts/**/ainative-studio-win32-*64.zip
