@@ -60,23 +60,23 @@ jobs:
               { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf-deb' },
               { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf-rpm' },
               
-              // Windows x64 - zip + installers
-              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64' },
-              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64-user-setup' },
-              { file: 'Windowsx64.yml', artifact: 'ainative-studio-win32-x64-system-setup' },
+              // Windows x64 - zip + installers (signed)
+              { file: 'Windowsx64-signed.yml', artifact: 'ainative-studio-win32-x64' },
+              { file: 'Windowsx64-signed.yml', artifact: 'ainative-studio-win32-x64-user-setup' },
+              { file: 'Windowsx64-signed.yml', artifact: 'ainative-studio-win32-x64-system-setup' },
               
-              // Windows ARM64 - zip + installers
-              { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64' },
-              { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64-user-setup' },
-              { file: 'build-windows-arm64.yml', artifact: 'ainative-studio-win32-arm64-system-setup' },
+              // Windows ARM64 - zip + installers (signed)
+              { file: 'build-windows-arm64-signed.yml', artifact: 'ainative-studio-win32-arm64' },
+              { file: 'build-windows-arm64-signed.yml', artifact: 'ainative-studio-win32-arm64-user-setup' },
+              { file: 'build-windows-arm64-signed.yml', artifact: 'ainative-studio-win32-arm64-system-setup' },
               
-              // macOS x64 - zip + dmg
-              { file: 'build-macos-x64-simple.yml', artifact: 'ainative-studio-darwin-x64-zip' },
-              { file: 'build-macos-x64-simple.yml', artifact: 'ainative-studio-darwin-x64-dmg' },
+              // macOS x64 - zip + dmg (signed)
+              { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-zip' },
+              { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-dmg' },
               
-              // macOS ARM64 - zip + dmg
-              { file: 'build-macos-arm64-simple.yml', artifact: 'ainative-studio-darwin-arm64-zip' },
-              { file: 'build-macos-arm64-simple.yml', artifact: 'ainative-studio-darwin-arm64-dmg' }
+              // macOS ARM64 - zip + dmg (signed)
+              { file: 'build-macos-arm64-signed.yml', artifact: 'ainative-studio-darwin-arm64-zip' },
+              { file: 'build-macos-arm64-signed.yml', artifact: 'ainative-studio-darwin-arm64-dmg' }
             ];
             
             const successfulRuns = [];
