@@ -71,12 +71,12 @@ jobs:
               { file: 'build-windows-arm64-signed.yml', artifact: 'ainative-studio-win32-arm64-system-setup' },
               
               // macOS x64 - zip + dmg (signed)
-              { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-zip' },
-              { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-dmg' },
+              { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-signed-zip' },
+              { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-signed-dmg' },
               
               // macOS ARM64 - zip + dmg (signed)
-              { file: 'build-macos-arm64-signed.yml', artifact: 'ainative-studio-darwin-arm64-zip' },
-              { file: 'build-macos-arm64-signed.yml', artifact: 'ainative-studio-darwin-arm64-dmg' }
+              { file: 'build-macos-arm64-signed.yml', artifact: 'ainative-studio-darwin-arm64-signed-zip' },
+              { file: 'build-macos-arm64-signed.yml', artifact: 'ainative-studio-darwin-arm64-signed-dmg' }
             ];
             
             const successfulRuns = [];
