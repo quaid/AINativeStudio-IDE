@@ -298,8 +298,8 @@ jobs:
             exit 1
           fi
           
-          # Use the ARM64-specific entitlements file from the repo
-          ENTITLEMENTS_PATH="build/azure-pipelines/darwin/app-entitlements-arm64.plist"
+          # Use the entitlements file from the repo
+          ENTITLEMENTS_PATH="build/azure-pipelines/darwin/app-entitlements.plist"
           
           # Verify entitlements file exists
           if [ ! -f "$ENTITLEMENTS_PATH" ]; then
