@@ -549,55 +549,6 @@ jobs:
           rm -rf dmg-temp
           
           echo "DMG created successfully"
-          
-          # Sign the DMG
-          DMG_PATH="${ACTUAL_APP_NAME}-darwin-x64-signed.dmg"
-          echo "Signing DMG: $DMG_PATH"
-          
-          # Get signing identity (should be available from previous job)
-          CERT_NAME=$(security find-identity -p codesigning -v | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
-          if [ -z "$CERT_NAME" ]; then
-            echo "::error::No Developer ID Application certificate found for DMG signing"
-            exit 1
-          fi
-          echo "Using certificate for DMG: $CERT_NAME"
-          
-          codesign --force --sign "$CERT_NAME" \
-                   --options runtime \
-                   --timestamp \
-                   "$DMG_PATH"
-          
-          # Verify DMG signature
-          echo "Verifying DMG signature..."
-          codesign --verify --deep --strict --verbose=2 "$DMG_PATH"
-          
-          # Notarize the DMG
-          echo "Notarizing DMG..."
-          DMG_ZIP="${DMG_PATH}.zip"
-          zip -q "$DMG_ZIP" "$DMG_PATH"
-          
-          # Create AuthKey file for notarization
-          echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > AuthKey.p8
-          
-          xcrun notarytool submit "$DMG_ZIP" \
-                   --key AuthKey.p8 \
-                   --key-id "${{ secrets.APPLE_KEY_ID }}" \
-                   --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
-                   --wait
-          
-          # Clean up
-          rm -f AuthKey.p8 "$DMG_ZIP"
-          
-          # Staple the notarization ticket to DMG
-          echo "Stapling notarization ticket to DMG..."
-          xcrun stapler staple "$DMG_PATH"
-          
-          # Verify stapling
-          echo "Verifying stapled DMG..."
-          xcrun stapler validate "$DMG_PATH"
-          codesign --verify --deep --strict --verbose=2 "$DMG_PATH"
-          
-          echo "✅ DMG signed, notarized, and stapled successfully!"
       
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
