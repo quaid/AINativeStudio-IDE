@@ -444,6 +444,92 @@ jobs:
           
           echo "✅ App successfully signed and notarized!"
       
+      - name: Create and sign DMG
+        working-directory: ainative-studio
+        run: |
+          # Find the signed app bundle
+          if [ -d "../AINativeStudio.app" ]; then
+            ACTUAL_APP_NAME="AINativeStudio"
+            APP_PATH="../AINativeStudio.app"
+          elif [ -d "../AINative Studio.app" ]; then
+            ACTUAL_APP_NAME="AINative Studio"
+            APP_PATH="../AINative Studio.app"
+          else
+            echo "Error: Cannot find signed app bundle for DMG creation"
+            ls -la ../
+            exit 1
+          fi
+          
+          echo "Creating DMG from signed app: ${ACTUAL_APP_NAME}.app"
+          
+          # Create a temporary directory for DMG contents
+          mkdir -p dmg-temp
+          
+          # Copy the signed app bundle
+          cp -R "$APP_PATH" dmg-temp/
+          echo "Copied ${ACTUAL_APP_NAME}.app to DMG contents"
+          
+          # Create Applications symlink
+          ln -s /Applications dmg-temp/Applications
+          
+          # Create DMG
+          DMG_PATH="${ACTUAL_APP_NAME}-darwin-arm64-signed.dmg"
+          hdiutil create -volname "${ACTUAL_APP_NAME}" \
+                        -srcfolder dmg-temp \
+                        -ov -format UDZO \
+                        "$DMG_PATH"
+          
+          # Clean up temp directory
+          rm -rf dmg-temp
+          echo "DMG created: $DMG_PATH"
+          
+          # Get signing identity (should be available from previous steps)
+          CERT_NAME=$(security find-identity -p codesigning -v build.keychain | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          if [ -z "$CERT_NAME" ]; then
+            echo "::error::No Developer ID Application certificate found for DMG signing"
+            exit 1
+          fi
+          echo "Using certificate for DMG: $CERT_NAME"
+          
+          # Sign the DMG
+          echo "Signing DMG..."
+          codesign --force --sign "$CERT_NAME" \
+                   --options runtime \
+                   --timestamp \
+                   "$DMG_PATH"
+          
+          # Verify DMG signature
+          echo "Verifying DMG signature..."
+          codesign --verify --deep --strict --verbose=2 "$DMG_PATH"
+          
+          # Notarize the DMG
+          echo "Notarizing DMG..."
+          DMG_ZIP="${DMG_PATH}.zip"
+          zip -q "$DMG_ZIP" "$DMG_PATH"
+          
+          # Create AuthKey file for notarization (reuse from previous step)
+          echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > AuthKey.p8
+          
+          xcrun notarytool submit "$DMG_ZIP" \
+                   --key AuthKey.p8 \
+                   --key-id "${{ secrets.APPLE_KEY_ID }}" \
+                   --issuer "${{ secrets.APPLE_ISSUER_ID }}" \
+                   --wait
+          
+          # Clean up
+          rm -f AuthKey.p8 "$DMG_ZIP"
+          
+          # Staple the notarization ticket to DMG
+          echo "Stapling notarization ticket to DMG..."
+          xcrun stapler staple "$DMG_PATH"
+          
+          # Verify stapling
+          echo "Verifying stapled DMG..."
+          xcrun stapler validate "$DMG_PATH"
+          codesign --verify --deep --strict --verbose=2 "$DMG_PATH"
+          
+          echo "✅ DMG signed, notarized, and stapled successfully!"
+      
       - name: Create signed archive
         working-directory: ainative-studio
         run: |
@@ -467,6 +553,13 @@ jobs:
           name: ainative-studio-darwin-arm64-signed
           path: ainative-studio/ainative-studio-darwin-arm64-signed.tar.gz
           retention-days: 7
+      
+      - name: Upload signed DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-darwin-arm64-signed-dmg-temp
+          path: ainative-studio/*-darwin-arm64-signed.dmg
+          retention-days: 1
 
   package:
     needs: sign-macos-arm64
@@ -482,6 +575,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ainative-studio-darwin-arm64-signed
+          path: ainative-studio/
+      
+      - name: Download signed DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ainative-studio-darwin-arm64-signed-dmg-temp
           path: ainative-studio/
       
       - name: Extract signed build
@@ -511,44 +610,6 @@ jobs:
           cd ..
           zip -r -y ainative-studio/${ACTUAL_APP_NAME}-darwin-arm64-signed.zip "${ACTUAL_APP_NAME}.app"
           echo "ZIP archive created successfully"
-      
-      - name: Create DMG
-        working-directory: ainative-studio
-        run: |
-          echo "Creating signed DMG..."
-          # Find the actual app name
-          if [ -d "../AINativeStudio.app" ]; then
-            ACTUAL_APP_NAME="AINativeStudio"
-          elif [ -d "../AINative Studio.app" ]; then
-            ACTUAL_APP_NAME="AINative Studio"
-          else
-            echo "ERROR: No app bundle found - cannot create DMG"
-            ls -la ../
-            exit 1
-          fi
-          
-          echo "Found app: ${ACTUAL_APP_NAME}.app"
-          
-          # Create a temporary directory for DMG contents
-          mkdir -p dmg-temp
-          
-          # Copy the signed app bundle
-          cp -R "../${ACTUAL_APP_NAME}.app" dmg-temp/
-          echo "Copied ${ACTUAL_APP_NAME}.app to DMG contents"
-          
-          # Create Applications symlink
-          ln -s /Applications dmg-temp/Applications
-          
-          # Create DMG
-          hdiutil create -volname "${ACTUAL_APP_NAME}" \
-                        -srcfolder dmg-temp \
-                        -ov -format UDZO \
-                        "${ACTUAL_APP_NAME}-darwin-arm64-signed.dmg"
-          
-          # Clean up
-          rm -rf dmg-temp
-          
-          echo "DMG created successfully"
       
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
