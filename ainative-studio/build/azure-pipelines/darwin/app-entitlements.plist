@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Required for Electron/VSCode on ALL Macs, especially M4 -->
+    <!-- Essential for VSCode/Electron on Apple Silicon -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
@@ -11,15 +11,23 @@
     <true/>
     <key>com.apple.security.cs.allow-dyld-environment-variables</key>
     <true/>
-    <key>com.apple.security.cs.disable-executable-page-protection</key>
+
+    <!-- File system access required for VSCode to open/save files -->
+    <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
-    
-    <!-- Device and automation permissions -->
+
+    <!-- Optional: Only include if your fork specifically needs these -->
     <key>com.apple.security.device.audio-input</key>
     <true/>
     <key>com.apple.security.device.camera</key>
     <true/>
-    <key>com.apple.security.automation.apple-events</key>
-    <true/>
+
+    <!-- REMOVED: com.apple.security.cs.disable-executable-page-protection -->
+    <!-- This entitlement is overly permissive and is known to cause notarization
+         and Gatekeeper rejections, leading to "Code 5" errors on M-series Macs. -->
+
+    <!-- REMOVED: com.apple.security.automation.apple-events -->
+    <!-- Usually not needed for VSCode forks unless you explicitly integrate
+         with other Apple applications via Apple Events. Removing for least privilege. -->
 </dict>
 </plist>
