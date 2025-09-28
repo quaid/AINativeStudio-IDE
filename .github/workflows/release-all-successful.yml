@@ -75,8 +75,8 @@ jobs:
               { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-signed-dmg' },
               
               // macOS ARM64 - zip + dmg (signed)
-              { file: 'build-macos-arm64-signed-checked.yml', artifact: 'ainative-studio-darwin-arm64-signed-zip' },
-              { file: 'build-macos-arm64-signed-checked.yml', artifact: 'ainative-studio-darwin-arm64-signed-dmg' }
+              { file: 'build-macos-arm64-signed-checked.yml', artifact: 'ainative-studio-darwin-arm64-signed-checked-zip' },
+              { file: 'build-macos-arm64-signed-checked.yml', artifact: 'ainative-studio-darwin-arm64-signed-checked-dmg' }
             ];
             
             const successfulRuns = [];
