@@ -164,51 +164,107 @@ jobs:
               }
             }
 
-      - name: Fix file permissions and rename duplicate installers
+      - name: Rename artifacts to release format
         run: |
-          echo "=== Downloaded Artifacts ==="
+          echo "=== Renaming artifacts to AINativeStudio-{version}-{OS}-{arch}.{ext} format ==="
+          VERSION="${{ inputs.version_tag }}"
+
           if [ -d "./artifacts" ]; then
-            # Make all AppImage files executable
+            # Make all AppImage files executable first
             find ./artifacts -name "*.AppImage" -exec chmod +x {} \;
-            
-            # Rename Windows installers to include architecture
-            echo "=== Renaming Windows installers ==="
-            
-            # Rename x64 installers
-            if [ -f "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" ]; then
-              mv "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" \
-                 "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup-x64.exe"
-              echo "Renamed x64 system setup installer"
-            fi
-            
-            if [ -f "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" ]; then
-              mv "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" \
-                 "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup-x64.exe"
-              echo "Renamed x64 user setup installer"
-            fi
-            
-            # Rename ARM64 installers  
-            if [ -f "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" ]; then
-              mv "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" \
-                 "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup-arm64.exe"
-              echo "Renamed arm64 system setup installer"
-            fi
-            
-            if [ -f "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" ]; then
-              mv "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" \
-                 "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup-arm64.exe"
-              echo "Renamed arm64 user setup installer"
-            fi
-            
-            # List all artifacts
-            find ./artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) | while read file; do
-              echo "Found: $file"
-              ls -lh "$file"
-            done
-            
-            # Show AppImage permissions specifically
-            echo "=== AppImage Permissions ==="
-            find ./artifacts -name "*.AppImage" -exec ls -la {} \;
+
+            # Create a staging directory for renamed files
+            mkdir -p ./release-files
+
+            # Linux x64 packages
+            [ -f "./artifacts/ainative-studio-linux-x64-tar/ainative-studio-linux-x64.tar.gz" ] && \
+              cp "./artifacts/ainative-studio-linux-x64-tar/ainative-studio-linux-x64.tar.gz" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-x64.tar.gz"
+
+            [ -f "./artifacts/ainative-studio-linux-x64-deb/ainative-studio-linux-x64.deb" ] && \
+              cp "./artifacts/ainative-studio-linux-x64-deb/ainative-studio-linux-x64.deb" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-x64.deb"
+
+            [ -f "./artifacts/ainative-studio-linux-x64-rpm/ainative-studio-linux-x64.rpm" ] && \
+              cp "./artifacts/ainative-studio-linux-x64-rpm/ainative-studio-linux-x64.rpm" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-x64.rpm"
+
+            [ -f "./artifacts/ainative-studio-linux-x64-appimage/ainative-studio-linux-x64.AppImage" ] && \
+              cp "./artifacts/ainative-studio-linux-x64-appimage/ainative-studio-linux-x64.AppImage" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-x64.AppImage"
+
+            # Linux ARM64 packages
+            [ -f "./artifacts/ainative-studio-linux-arm64-tar/ainative-studio-linux-arm64.tar.gz" ] && \
+              cp "./artifacts/ainative-studio-linux-arm64-tar/ainative-studio-linux-arm64.tar.gz" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-arm64.tar.gz"
+
+            [ -f "./artifacts/ainative-studio-linux-arm64-deb/ainative-studio-linux-arm64.deb" ] && \
+              cp "./artifacts/ainative-studio-linux-arm64-deb/ainative-studio-linux-arm64.deb" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-arm64.deb"
+
+            [ -f "./artifacts/ainative-studio-linux-arm64-rpm/ainative-studio-linux-arm64.rpm" ] && \
+              cp "./artifacts/ainative-studio-linux-arm64-rpm/ainative-studio-linux-arm64.rpm" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-arm64.rpm"
+
+            # Linux ARM packages
+            [ -f "./artifacts/ainative-studio-linux-armhf-tar/ainative-studio-linux-armhf.tar.gz" ] && \
+              cp "./artifacts/ainative-studio-linux-armhf-tar/ainative-studio-linux-armhf.tar.gz" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-armhf.tar.gz"
+
+            [ -f "./artifacts/ainative-studio-linux-armhf-deb/ainative-studio-linux-armhf.deb" ] && \
+              cp "./artifacts/ainative-studio-linux-armhf-deb/ainative-studio-linux-armhf.deb" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-armhf.deb"
+
+            [ -f "./artifacts/ainative-studio-linux-armhf-rpm/ainative-studio-linux-armhf.rpm" ] && \
+              cp "./artifacts/ainative-studio-linux-armhf-rpm/ainative-studio-linux-armhf.rpm" \
+                 "./release-files/AINativeStudio-${VERSION}-Linux-armhf.rpm"
+
+            # Windows x64 packages
+            [ -f "./artifacts/ainative-studio-win32-x64/ainative-studio-win32-x64.zip" ] && \
+              cp "./artifacts/ainative-studio-win32-x64/ainative-studio-win32-x64.zip" \
+                 "./release-files/AINativeStudio-${VERSION}-Windows-x64.zip"
+
+            [ -f "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" \
+                 "./release-files/AINativeStudio-${VERSION}-Windows-x64-UserSetup.exe"
+
+            [ -f "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" \
+                 "./release-files/AINativeStudio-${VERSION}-Windows-x64-SystemSetup.exe"
+
+            # Windows ARM64 packages
+            [ -f "./artifacts/ainative-studio-win32-arm64/ainative-studio-win32-arm64.zip" ] && \
+              cp "./artifacts/ainative-studio-win32-arm64/ainative-studio-win32-arm64.zip" \
+                 "./release-files/AINativeStudio-${VERSION}-Windows-arm64.zip"
+
+            [ -f "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" \
+                 "./release-files/AINativeStudio-${VERSION}-Windows-arm64-UserSetup.exe"
+
+            [ -f "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" \
+                 "./release-files/AINativeStudio-${VERSION}-Windows-arm64-SystemSetup.exe"
+
+            # macOS x64 packages (use find because file name could be "AINativeStudio" or "AINative Studio")
+            MACOS_X64_ZIP=$(find ./artifacts/ainative-studio-darwin-x64-signed-zip/ -name "*-darwin-x64-signed.zip" -type f 2>/dev/null | head -1)
+            [ -n "$MACOS_X64_ZIP" ] && \
+              cp "$MACOS_X64_ZIP" "./release-files/AINativeStudio-${VERSION}-macOS-x64.zip"
+
+            MACOS_X64_DMG=$(find ./artifacts/ainative-studio-darwin-x64-signed-dmg/ -name "*-darwin-x64-signed.dmg" -type f 2>/dev/null | head -1)
+            [ -n "$MACOS_X64_DMG" ] && \
+              cp "$MACOS_X64_DMG" "./release-files/AINativeStudio-${VERSION}-macOS-x64.dmg"
+
+            # macOS ARM64 packages (use find because file name could be "AINativeStudio" or "AINative Studio")
+            MACOS_ARM64_ZIP=$(find ./artifacts/ainative-studio-darwin-arm64-signed-checked-zip/ -name "*-darwin-arm64-signed.zip" -type f 2>/dev/null | head -1)
+            [ -n "$MACOS_ARM64_ZIP" ] && \
+              cp "$MACOS_ARM64_ZIP" "./release-files/AINativeStudio-${VERSION}-macOS-arm64.zip"
+
+            MACOS_ARM64_DMG=$(find ./artifacts/ainative-studio-darwin-arm64-signed-checked-dmg/ -name "*-darwin-arm64-signed.dmg" -type f 2>/dev/null | head -1)
+            [ -n "$MACOS_ARM64_DMG" ] && \
+              cp "$MACOS_ARM64_DMG" "./release-files/AINativeStudio-${VERSION}-macOS-arm64.dmg"
+
+            echo "=== Renamed Release Files ==="
+            ls -lh ./release-files/
           else
             echo "No artifacts found"
           fi
@@ -282,13 +338,6 @@ jobs:
           prerelease: ${{ inputs.prerelease }}
           fail_on_unmatched_files: false
           files: |
-            ./artifacts/**/*.tar.gz
-            ./artifacts/**/ainative-studio-win32-*64.zip
-            ./artifacts/**/AINativeStudio-darwin-*.zip
-            ./artifacts/**/*.deb
-            ./artifacts/**/*.rpm
-            ./artifacts/**/*.AppImage
-            ./artifacts/**/AINativeStudio*.exe
-            ./artifacts/**/*.dmg
+            ./release-files/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
