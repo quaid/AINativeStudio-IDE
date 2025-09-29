@@ -264,7 +264,7 @@ jobs:
         with:
           name: ainative-studio-win32-x64
           path: ainative-studio/ainative-studio-win32-x64.zip
-          retention-days: 7
+          retention-days: 30
 
   package:
     needs: build

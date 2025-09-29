@@ -196,7 +196,7 @@ jobs:
         with:
           name: ainative-studio-linux-arm64
           path: ainative-studio/ainative-studio-linux-arm64.tar.gz
-          retention-days: 7
+          retention-days: 30
 
   package:
     needs: build-core

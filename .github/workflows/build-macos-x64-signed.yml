@@ -185,7 +185,7 @@ jobs:
         with:
           name: ainative-studio-darwin-x64
           path: ainative-studio/ainative-studio-darwin-x64.tar.gz
-          retention-days: 7
+          retention-days: 30
 
   sign-macos-x64:
     needs: build-macos-x64
@@ -552,14 +552,14 @@ jobs:
         with:
           name: ainative-studio-darwin-x64-signed
           path: ainative-studio/ainative-studio-darwin-x64-signed.tar.gz
-          retention-days: 7
+          retention-days: 30
       
       - name: Upload signed DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: ainative-studio-darwin-x64-signed-dmg-temp
           path: ainative-studio/*-darwin-x64-signed.dmg
-          retention-days: 1
+          retention-days: 30
 
   package:
     needs: sign-macos-x64

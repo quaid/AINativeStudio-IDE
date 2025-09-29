@@ -335,7 +335,7 @@ jobs:
         with:
           name: ainative-studio-linux-x64-tar
           path: ainative-studio/ainative-studio-linux-x64.tar.gz
-          retention-days: 7
+          retention-days: 30
 
       - name: Create DEB package
         run: |
@@ -526,7 +526,7 @@ jobs:
         with:
           name: ainative-studio-linux-x64-tar
           path: ainative-studio/ainative-studio-linux-x64.tar.gz
-          retention-days: 7
+          retention-days: 30
           overwrite: true
 
       - name: Upload AppImage artifact
@@ -534,7 +534,7 @@ jobs:
         with:
           name: ainative-studio-linux-x64-appimage
           path: ainative-studio/ainative-studio-linux-x64.AppImage
-          retention-days: 7
+          retention-days: 30
           overwrite: true
 
       - name: Upload DEB package
@@ -542,7 +542,7 @@ jobs:
         with:
           name: ainative-studio-linux-x64-deb
           path: ainative-studio/ainative-studio-linux-x64.deb
-          retention-days: 7
+          retention-days: 30
           overwrite: true
 
       - name: Upload RPM package
@@ -550,5 +550,5 @@ jobs:
         with:
           name: ainative-studio-linux-x64-rpm
           path: ainative-studio/ainative-studio-linux-x64.rpm
-          retention-days: 7
+          retention-days: 30
           overwrite: true
