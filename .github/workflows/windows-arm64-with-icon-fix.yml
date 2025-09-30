@@ -164,12 +164,19 @@ jobs:
           Write-Host "======================================"
 
           # Determine the correct path based on where VSCode-win32-arm64 is located
-          if (Test-Path VSCode-win32-arm64) {
-            $exePath = "VSCode-win32-arm64/AINativeStudio.exe"
-          } elseif (Test-Path ../VSCode-win32-arm64) {
-            $exePath = "../VSCode-win32-arm64/AINativeStudio.exe"
+          # Note: exe name has a space: "AINative Studio.exe" (from product.nameShort)
+          if (Test-Path "VSCode-win32-arm64/AINative Studio.exe") {
+            $exePath = "VSCode-win32-arm64/AINative Studio.exe"
+          } elseif (Test-Path "../VSCode-win32-arm64/AINative Studio.exe") {
+            $exePath = "../VSCode-win32-arm64/AINative Studio.exe"
           } else {
-            Write-Host "❌ ERROR: VSCode-win32-arm64 directory not found"
+            Write-Host "❌ ERROR: AINative Studio.exe not found"
+            Write-Host "Checking for directory and listing exe files..."
+            if (Test-Path VSCode-win32-arm64) {
+              Get-ChildItem -Path VSCode-win32-arm64 -Filter "*.exe" | Select-Object Name
+            } elseif (Test-Path ../VSCode-win32-arm64) {
+              Get-ChildItem -Path ../VSCode-win32-arm64 -Filter "*.exe" | Select-Object Name
+            }
             exit 1
           }
 
