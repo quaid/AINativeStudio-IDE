@@ -203,15 +203,18 @@ jobs:
 
           # Use rcedit from node_modules to embed the icon
           Write-Host "`nEmbedding icon using rcedit..."
-          try {
-            npx rcedit $exePath --set-icon $iconPath
-            Write-Host "✅ Icon embedded successfully!"
-          } catch {
-            Write-Host "❌ ERROR: Failed to embed icon"
-            Write-Host "Error details: $_"
+
+          # Run npx rcedit and capture exit code
+          npx rcedit $exePath --set-icon $iconPath
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ ERROR: rcedit failed with exit code $LASTEXITCODE"
+            Write-Host "Checking if rcedit is available..."
+            npx rcedit --version
             exit 1
           }
 
+          Write-Host "✅ Icon embedded successfully!"
           Write-Host "`n======================================"
           Write-Host "Icon embedding process completed"
           Write-Host "======================================"
