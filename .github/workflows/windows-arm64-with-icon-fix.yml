@@ -203,15 +203,13 @@ jobs:
           Write-Host "✓ Executable found: $exePath"
           Write-Host "  Size: $((Get-Item $exePath).Length) bytes"
 
-          # Use rcedit from node_modules to embed the icon
+          # Use downloaded rcedit to embed the icon
           Write-Host "`nEmbedding icon using rcedit..."
 
-          # Use rcedit directly from node_modules (npx has issues finding it)
-          $rcEditPath = "node_modules\.bin\rcedit.cmd"
+          # Use rcedit downloaded from GitHub releases
+          $rcEditPath = "$env:TEMP\rcedit.exe"
           if (-not (Test-Path $rcEditPath)) {
             Write-Host "❌ ERROR: rcedit not found at $rcEditPath"
-            Write-Host "Checking node_modules\.bin contents:"
-            Get-ChildItem node_modules\.bin | Select-Object Name
             exit 1
           }
 

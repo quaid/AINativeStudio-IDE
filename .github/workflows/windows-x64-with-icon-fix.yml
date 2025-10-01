@@ -157,6 +157,21 @@ jobs:
           }
 
       # ===== ICON EMBEDDING FIX =====
+      - name: Download rcedit
+        shell: pwsh
+        run: |
+          Write-Host "Downloading rcedit..."
+          $rcEditUrl = "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
+          $rcEditPath = "$env:TEMP\rcedit.exe"
+          Invoke-WebRequest -Uri $rcEditUrl -OutFile $rcEditPath
+          Write-Host "✓ Downloaded rcedit to: $rcEditPath"
+
+          # Verify it works
+          & $rcEditPath --version
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ rcedit is working"
+          }
+
       - name: Force embed application icon
         working-directory: ainative-studio
         shell: pwsh
@@ -201,15 +216,13 @@ jobs:
           Write-Host "✓ Executable found: $exePath"
           Write-Host "  Size: $((Get-Item $exePath).Length) bytes"
 
-          # Use rcedit from node_modules to embed the icon
+          # Use downloaded rcedit to embed the icon
           Write-Host "`nEmbedding icon using rcedit..."
 
-          # Use rcedit directly from node_modules (npx has issues finding it)
-          $rcEditPath = "node_modules\.bin\rcedit.cmd"
+          # Use rcedit downloaded from GitHub releases
+          $rcEditPath = "$env:TEMP\rcedit.exe"
           if (-not (Test-Path $rcEditPath)) {
             Write-Host "❌ ERROR: rcedit not found at $rcEditPath"
-            Write-Host "Checking node_modules\.bin contents:"
-            Get-ChildItem node_modules\.bin | Select-Object Name
             exit 1
           }
 
