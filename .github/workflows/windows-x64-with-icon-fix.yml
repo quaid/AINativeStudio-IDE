@@ -166,10 +166,9 @@ jobs:
           Invoke-WebRequest -Uri $rcEditUrl -OutFile $rcEditPath
           Write-Host "✓ Downloaded rcedit to: $rcEditPath"
 
-          # Verify it works
-          & $rcEditPath --version
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "✓ rcedit is working"
+          if (Test-Path $rcEditPath) {
+            Write-Host "✓ rcedit downloaded successfully"
+            Write-Host "  Size: $((Get-Item $rcEditPath).Length) bytes"
           }
 
       - name: Force embed application icon

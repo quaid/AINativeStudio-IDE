@@ -155,6 +155,20 @@ jobs:
           }
 
       # ===== ICON EMBEDDING FIX =====
+      - name: Download rcedit
+        shell: pwsh
+        run: |
+          Write-Host "Downloading rcedit..."
+          $rcEditUrl = "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
+          $rcEditPath = "$env:TEMP\rcedit.exe"
+          Invoke-WebRequest -Uri $rcEditUrl -OutFile $rcEditPath
+          Write-Host "✓ Downloaded rcedit to: $rcEditPath"
+
+          if (Test-Path $rcEditPath) {
+            Write-Host "✓ rcedit downloaded successfully"
+            Write-Host "  Size: $((Get-Item $rcEditPath).Length) bytes"
+          }
+
       - name: Force embed application icon
         working-directory: ainative-studio
         shell: pwsh
