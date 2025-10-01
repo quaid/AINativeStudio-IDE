@@ -206,13 +206,20 @@ jobs:
           # Use rcedit from node_modules to embed the icon
           Write-Host "`nEmbedding icon using rcedit..."
 
-          # Run npx rcedit and capture exit code
-          npx rcedit $exePath --set-icon $iconPath
+          # Use rcedit directly from node_modules (npx has issues finding it)
+          $rcEditPath = "node_modules\.bin\rcedit.cmd"
+          if (-not (Test-Path $rcEditPath)) {
+            Write-Host "❌ ERROR: rcedit not found at $rcEditPath"
+            Write-Host "Checking node_modules\.bin contents:"
+            Get-ChildItem node_modules\.bin | Select-Object Name
+            exit 1
+          }
+
+          Write-Host "Using rcedit from: $rcEditPath"
+          & $rcEditPath $exePath --set-icon $iconPath
 
           if ($LASTEXITCODE -ne 0) {
             Write-Host "❌ ERROR: rcedit failed with exit code $LASTEXITCODE"
-            Write-Host "Checking if rcedit is available..."
-            npx rcedit --version
             exit 1
           }
 
