@@ -60,15 +60,15 @@ jobs:
               { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf-deb' },
               { file: 'build-linux-arm.yml', artifact: 'ainative-studio-linux-armhf-rpm' },
               
-              // Windows x64 - zip + installers (signed)
-              { file: 'Windowsx64-signed.yml', artifact: 'ainative-studio-win32-x64' },
-              { file: 'Windowsx64-signed.yml', artifact: 'ainative-studio-win32-x64-user-setup' },
-              { file: 'Windowsx64-signed.yml', artifact: 'ainative-studio-win32-x64-system-setup' },
+              // Windows x64 - zip + installers (with icon fix)
+              { file: 'windows-x64-with-icon-fix.yml', artifact: 'ainative-studio-win32-x64-icon-fix' },
+              { file: 'windows-x64-with-icon-fix.yml', artifact: 'ainative-studio-win32-x64-user-setup-icon-fix' },
+              { file: 'windows-x64-with-icon-fix.yml', artifact: 'ainative-studio-win32-x64-system-setup-icon-fix' },
               
-              // Windows ARM64 - zip + installers (signed)
-              { file: 'build-windows-arm64-signed.yml', artifact: 'ainative-studio-win32-arm64' },
-              { file: 'build-windows-arm64-signed.yml', artifact: 'ainative-studio-win32-arm64-user-setup' },
-              { file: 'build-windows-arm64-signed.yml', artifact: 'ainative-studio-win32-arm64-system-setup' },
+              // Windows ARM64 - zip + installers (with icon fix)
+              { file: 'windows-arm64-with-icon-fix.yml', artifact: 'ainative-studio-win32-arm64-icon-fix' },
+              { file: 'windows-arm64-with-icon-fix.yml', artifact: 'ainative-studio-win32-arm64-user-setup-icon-fix' },
+              { file: 'windows-arm64-with-icon-fix.yml', artifact: 'ainative-studio-win32-arm64-system-setup-icon-fix' },
               
               // macOS x64 - zip + dmg (signed)
               { file: 'build-macos-x64-signed.yml', artifact: 'ainative-studio-darwin-x64-signed-zip' },
@@ -219,30 +219,30 @@ jobs:
               cp "./artifacts/ainative-studio-linux-armhf-rpm/ainative-studio-linux-armhf.rpm" \
                  "./release-files/AINativeStudio-${VERSION}-Linux-armhf.rpm"
 
-            # Windows x64 packages
-            [ -f "./artifacts/ainative-studio-win32-x64/ainative-studio-win32-x64.zip" ] && \
-              cp "./artifacts/ainative-studio-win32-x64/ainative-studio-win32-x64.zip" \
+            # Windows x64 packages (with icon fix)
+            [ -f "./artifacts/ainative-studio-win32-x64-icon-fix/ainative-studio-win32-x64.zip" ] && \
+              cp "./artifacts/ainative-studio-win32-x64-icon-fix/ainative-studio-win32-x64.zip" \
                  "./release-files/AINativeStudio-${VERSION}-Windows-x64.zip"
 
-            [ -f "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" ] && \
-              cp "./artifacts/ainative-studio-win32-x64-user-setup/AINativeStudio-UserSetup.exe" \
+            [ -f "./artifacts/ainative-studio-win32-x64-user-setup-icon-fix/AINativeStudio-UserSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-x64-user-setup-icon-fix/AINativeStudio-UserSetup.exe" \
                  "./release-files/AINativeStudio-${VERSION}-Windows-x64-UserSetup.exe"
 
-            [ -f "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" ] && \
-              cp "./artifacts/ainative-studio-win32-x64-system-setup/AINativeStudio-SystemSetup.exe" \
+            [ -f "./artifacts/ainative-studio-win32-x64-system-setup-icon-fix/AINativeStudio-SystemSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-x64-system-setup-icon-fix/AINativeStudio-SystemSetup.exe" \
                  "./release-files/AINativeStudio-${VERSION}-Windows-x64-SystemSetup.exe"
 
-            # Windows ARM64 packages
-            [ -f "./artifacts/ainative-studio-win32-arm64/ainative-studio-win32-arm64.zip" ] && \
-              cp "./artifacts/ainative-studio-win32-arm64/ainative-studio-win32-arm64.zip" \
+            # Windows ARM64 packages (with icon fix)
+            [ -f "./artifacts/ainative-studio-win32-arm64-icon-fix/ainative-studio-win32-arm64.zip" ] && \
+              cp "./artifacts/ainative-studio-win32-arm64-icon-fix/ainative-studio-win32-arm64.zip" \
                  "./release-files/AINativeStudio-${VERSION}-Windows-arm64.zip"
 
-            [ -f "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" ] && \
-              cp "./artifacts/ainative-studio-win32-arm64-user-setup/AINativeStudio-UserSetup.exe" \
+            [ -f "./artifacts/ainative-studio-win32-arm64-user-setup-icon-fix/AINativeStudio-UserSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-arm64-user-setup-icon-fix/AINativeStudio-UserSetup.exe" \
                  "./release-files/AINativeStudio-${VERSION}-Windows-arm64-UserSetup.exe"
 
-            [ -f "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" ] && \
-              cp "./artifacts/ainative-studio-win32-arm64-system-setup/AINativeStudio-SystemSetup.exe" \
+            [ -f "./artifacts/ainative-studio-win32-arm64-system-setup-icon-fix/AINativeStudio-SystemSetup.exe" ] && \
+              cp "./artifacts/ainative-studio-win32-arm64-system-setup-icon-fix/AINativeStudio-SystemSetup.exe" \
                  "./release-files/AINativeStudio-${VERSION}-Windows-arm64-SystemSetup.exe"
 
             # macOS x64 packages (use find because file name could be "AINativeStudio" or "AINative Studio")
