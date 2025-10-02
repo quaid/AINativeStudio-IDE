@@ -1,0 +1,629 @@
+name: Windows ARM64 Signed Build (Free Runner)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: 
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-windows-arm64:
+    # Using the new free Windows ARM64 runner for public repositories
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+
+      # Setup Python with ARM64 support explicitly
+      - name: Setup Python (ARM64)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'ARM64'
+
+      - name: Verify Python architecture
+        run: |
+          python -c "import platform; print(f'Python architecture: {platform.machine()}')"
+          python -c "import sys; print(f'Python version: {sys.version}')"
+        shell: pwsh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            ainative-studio/package-lock.json
+            ainative-studio/build/package-lock.json
+
+      - name: Install build dependencies
+        working-directory: ainative-studio/build
+        run: |
+          for /l %%i in (1,1,5) do (
+            npm ci && exit /b 0
+          )
+          echo "npm ci in build/ failed too many times"
+          exit /b 1
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: ainative-studio
+        run: |
+          for /l %%i in (1,1,5) do (
+            npm ci && exit /b 0
+          )
+          echo "npm ci failed too many times"
+          exit /b 1
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache node build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ainative-studio/node_modules/.cache
+            ainative-studio/extensions/*/node_modules/.cache
+          key: node-cache-${{ runner.os }}-arm64-${{ hashFiles('ainative-studio/package-lock.json') }}
+          restore-keys: |
+            node-cache-${{ runner.os }}-arm64-
+
+      - name: Cache gulp cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gulp-cache
+          key: ${{ runner.os }}-arm64-gulp-${{ hashFiles('ainative-studio/package-lock.json', 'ainative-studio/build/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-arm64-gulp-
+
+      - name: Build React components
+        working-directory: ainative-studio
+        run: npm run buildreact
+        shell: cmd
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+
+      - name: Compile TypeScript
+        working-directory: ainative-studio
+        run: npm run gulp compile-build-without-mangling
+        shell: cmd
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+          UV_THREADPOOL_SIZE: 64
+
+      - name: Build all extensions
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          # Build extensions sequentially but efficiently
+          $extensions = @(
+            "configuration-editing", "css-language-features-client", "css-language-features-server",
+            "typescript-language-features", "git", "git-base",
+            "debug-auto-launch", "debug-server-ready", "emmet", "extension-editing",
+            "github", "github-authentication", "grunt", "gulp",
+            "html-language-features-client", "html-language-features-server", "ipynb", "jake",
+            "json-language-features-client", "json-language-features-server",
+            "markdown-language-features", "markdown-math", "media-preview",
+            "merge-conflict", "terminal-suggest", "microsoft-authentication", "notebook-renderers",
+            "npm", "php-language-features", "references-view", "search-result",
+            "simple-browser", "tunnel-forwarding",
+            "vscode-api-tests", "vscode-colorize-tests"
+          )
+
+          foreach ($ext in $extensions) {
+            Write-Host "Building extension: $ext"
+            try {
+              npm run gulp "compile-extension:$ext"
+            } catch {
+              Write-Warning "Failed to build extension: $ext (continuing)"
+            }
+          }
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+
+      - name: Minify VSCode
+        working-directory: ainative-studio
+        run: npm run gulp minify-vscode
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+          UV_THREADPOOL_SIZE: 64
+
+      - name: Package Windows ARM64 build
+        working-directory: ainative-studio
+        run: npm run gulp vscode-win32-arm64-min-ci
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+
+      - name: Verify build output
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Checking for build output directories..."
+          Write-Host "Current directory: $(Get-Location)"
+
+          $buildPath = $null
+          if (Test-Path VSCode-win32-arm64) {
+            Write-Host "✅ Found VSCode-win32-arm64 in current directory"
+            $buildPath = "VSCode-win32-arm64"
+            echo "BUILD_OUTPUT_PATH=VSCode-win32-arm64" >> $env:GITHUB_ENV
+          } elseif (Test-Path ../VSCode-win32-arm64) {
+            Write-Host "✅ Found VSCode-win32-arm64 in parent directory"
+            $buildPath = "../VSCode-win32-arm64"
+            echo "BUILD_OUTPUT_PATH=../VSCode-win32-arm64" >> $env:GITHUB_ENV
+          } else {
+            Write-Host "❌ VSCode-win32-arm64 not found in expected locations"
+            Write-Host "Contents of ainative-studio directory:"
+            Get-ChildItem -Force | Format-Table Name, Length, LastWriteTime
+            Write-Host "`nContents of parent directory:"
+            Get-ChildItem -Path ../ -Force | Format-Table Name, Length, LastWriteTime
+            Write-Host "`nSearching for any VSCode directories..."
+            $vsDirs = Get-ChildItem -Path ../ -Recurse -Directory -Filter "VSCode*" -ErrorAction SilentlyContinue | Select-Object -First 5
+            if ($vsDirs) {
+              Write-Host "Found these VSCode directories:"
+              $vsDirs | ForEach-Object { Write-Host "  - $($_.FullName)" }
+            }
+            exit 1
+          }
+
+      # ===== ICON EMBEDDING FIX =====
+      - name: Download rcedit
+        shell: pwsh
+        run: |
+          Write-Host "Downloading rcedit..."
+          $rcEditUrl = "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
+          $rcEditPath = "$env:TEMP\rcedit.exe"
+          Invoke-WebRequest -Uri $rcEditUrl -OutFile $rcEditPath
+          Write-Host "✓ Downloaded rcedit to: $rcEditPath"
+
+          if (Test-Path $rcEditPath) {
+            Write-Host "✓ rcedit downloaded successfully"
+            Write-Host "  Size: $((Get-Item $rcEditPath).Length) bytes"
+          }
+
+      - name: Force embed application icon
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "======================================"
+          Write-Host "FORCE EMBEDDING AINATIVE STUDIO ICON"
+          Write-Host "======================================"
+
+          # Use the BUILD_OUTPUT_PATH from earlier verification
+          $buildPath = $env:BUILD_OUTPUT_PATH
+          if (-not $buildPath) {
+            $buildPath = if (Test-Path "VSCode-win32-arm64") { "VSCode-win32-arm64" } else { "../VSCode-win32-arm64" }
+          }
+          
+          $exePath = "$buildPath/AINative Studio.exe"
+          if (-not (Test-Path $exePath)) {
+            Write-Host "❌ ERROR: AINative Studio.exe not found at $exePath"
+            Write-Host "Checking for exe files in $buildPath..."
+            if (Test-Path $buildPath) {
+              Get-ChildItem -Path $buildPath -Filter "*.exe" | Select-Object Name
+            }
+            exit 1
+          }
+
+          $iconPath = "resources/win32/code.ico"
+
+          # Verify icon file exists
+          if (-not (Test-Path $iconPath)) {
+            Write-Host "❌ ERROR: Icon file not found at: $iconPath"
+            Write-Host "Current directory: $(Get-Location)"
+            Write-Host "Contents:"
+            Get-ChildItem -Recurse -Filter "*.ico" | Select-Object FullName
+            exit 1
+          }
+
+          Write-Host "✓ Icon file found: $iconPath"
+          Write-Host "  Size: $((Get-Item $iconPath).Length) bytes"
+
+          # Verify executable exists
+          if (-not (Test-Path $exePath)) {
+            Write-Host "❌ ERROR: Executable not found at: $exePath"
+            exit 1
+          }
+
+          Write-Host "✓ Executable found: $exePath"
+          Write-Host "  Size: $((Get-Item $exePath).Length) bytes"
+
+          # Use downloaded rcedit to embed the icon
+          Write-Host "`nEmbedding icon using rcedit..."
+
+          # Use rcedit downloaded from GitHub releases
+          $rcEditPath = "$env:TEMP\rcedit.exe"
+          if (-not (Test-Path $rcEditPath)) {
+            Write-Host "❌ ERROR: rcedit not found at $rcEditPath"
+            exit 1
+          }
+
+          Write-Host "Using rcedit from: $rcEditPath"
+          & $rcEditPath $exePath --set-icon $iconPath
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ ERROR: rcedit failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          Write-Host "✅ Icon embedded successfully!"
+          Write-Host "`n======================================"
+          Write-Host "Icon embedding process completed"
+          Write-Host "======================================"
+
+      # ===== CODE SIGNING SECTION =====
+      - name: Setup ARM64 SignTool
+        shell: pwsh
+        run: |
+          Write-Host "Locating ARM64 SignTool..."
+          
+          # Find Windows SDK versions
+          $sdkPath = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+          if (Test-Path $sdkPath) {
+            $sdkVersions = Get-ChildItem -Path $sdkPath -Directory | Sort-Object Name -Descending
+            
+            foreach ($version in $sdkVersions) {
+              $arm64SignTool = Join-Path $version.FullName "arm64\signtool.exe"
+              if (Test-Path $arm64SignTool) {
+                Write-Host "✅ Found ARM64 SignTool at: $arm64SignTool"
+                # Add to PATH
+                $arm64BinPath = Split-Path $arm64SignTool -Parent
+                echo "$arm64BinPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                echo "SIGNTOOL_PATH=$arm64SignTool" >> $env:GITHUB_ENV
+                break
+              }
+            }
+            
+            # Fallback to x64 if ARM64 not found
+            if (-not $env:SIGNTOOL_PATH) {
+              foreach ($version in $sdkVersions) {
+                $x64SignTool = Join-Path $version.FullName "x64\signtool.exe"
+                if (Test-Path $x64SignTool) {
+                  Write-Host "⚠️ ARM64 SignTool not found, using x64 version at: $x64SignTool"
+                  $x64BinPath = Split-Path $x64SignTool -Parent
+                  echo "$x64BinPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                  echo "SIGNTOOL_PATH=$x64SignTool" >> $env:GITHUB_ENV
+                  break
+                }
+              }
+            }
+          }
+          
+          if (-not $env:SIGNTOOL_PATH) {
+            # Final fallback: use the marketplace action
+            Write-Host "⚠️ SignTool not found manually, will use marketplace action"
+          }
+      
+      - name: Add SignTool to PATH (fallback)
+        if: env.SIGNTOOL_PATH == ''
+        uses: KamaranL/add-signtool-action@v1
+        id: signtool
+      
+      - name: Import signing certificate
+        if: env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          Write-Host "Importing code signing certificate..."
+
+          # Decode certificate from base64
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          $certPath = "$env:TEMP\codesign.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+
+          # Import certificate to certificate store
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+
+          Write-Host "Certificate imported with thumbprint: $($cert.Thumbprint)"
+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+          # Clean up temp file
+          Remove-Item $certPath -Force
+
+      - name: Sign main executable
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing main executable..."
+
+          # Determine the correct path
+          if (Test-Path "VSCode-win32-arm64/AINative Studio.exe") {
+            $exePath = "VSCode-win32-arm64/AINative Studio.exe"
+          } elseif (Test-Path "../VSCode-win32-arm64/AINative Studio.exe") {
+            $exePath = "../VSCode-win32-arm64/AINative Studio.exe"
+          } else {
+            Write-Host "Main executable not found"
+            exit 0
+          }
+
+          if (Test-Path $exePath) {
+            signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com `
+              /sha1 $env:CERT_THUMBPRINT /d "AINative Studio IDE (ARM64)" $exePath
+          }
+
+      - name: Sign Node.js executable
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing Node.js executable..."
+
+          # Determine the correct path
+          if (Test-Path VSCode-win32-arm64/node.exe) {
+            $nodePath = "VSCode-win32-arm64/node.exe"
+          } elseif (Test-Path ../VSCode-win32-arm64/node.exe) {
+            $nodePath = "../VSCode-win32-arm64/node.exe"
+          } else {
+            Write-Host "Node.js executable not found"
+            exit 0
+          }
+
+          if (Test-Path $nodePath) {
+            signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com `
+              /sha1 $env:CERT_THUMBPRINT /d "Node.js Runtime for AINative Studio (ARM64)" $nodePath
+          }
+
+      - name: Sign CLI executable
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing CLI executable..."
+
+          # Determine the correct path
+          if (Test-Path VSCode-win32-arm64/bin/code.exe) {
+            $cliPath = "VSCode-win32-arm64/bin/code.exe"
+          } elseif (Test-Path ../VSCode-win32-arm64/bin/code.exe) {
+            $cliPath = "../VSCode-win32-arm64/bin/code.exe"
+          } else {
+            Write-Host "CLI executable not found"
+            exit 0
+          }
+
+          if (Test-Path $cliPath) {
+            signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com `
+              /sha1 $env:CERT_THUMBPRINT /d "AINative Studio CLI (ARM64)" $cliPath
+          }
+
+      - name: Create archive
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Creating archive from VSCode-win32-arm64..."
+          Write-Host "Current directory: $(Get-Location)"
+
+          if (Test-Path VSCode-win32-arm64) {
+            Write-Host "Found VSCode-win32-arm64 in current directory"
+            Set-Location VSCode-win32-arm64
+            7z a -tzip ../ainative-studio-win32-arm64.zip .
+            Set-Location ..
+          } elseif (Test-Path ../VSCode-win32-arm64) {
+            Write-Host "Found VSCode-win32-arm64 in parent directory"
+            Set-Location ../VSCode-win32-arm64
+            7z a -tzip ../ainative-studio/ainative-studio-win32-arm64.zip .
+            Set-Location ../ainative-studio
+          } else {
+            Write-Host "❌ VSCode-win32-arm64 directory not found!"
+            Write-Host "Contents of current directory:"
+            Get-ChildItem -Force | Format-Table Name
+            Write-Host "Contents of parent directory:"
+            Get-ChildItem -Path ../ -Force | Format-Table Name
+            exit 1
+          }
+          Write-Host "Created archive: ainative-studio-win32-arm64.zip"
+
+      # ===== PACKAGING SECTION (Native on ARM64) =====
+      
+      - name: Prepare build for installer creation
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Preparing build for installer creation..."
+          # Create empty tools folder if it doesn't exist (required by Inno Setup)
+          if (Test-Path VSCode-win32-arm64) {
+            if (-not (Test-Path VSCode-win32-arm64/tools)) {
+              Write-Host "Creating tools folder for Inno Setup..."
+              New-Item -ItemType Directory -Path VSCode-win32-arm64/tools -Force
+              New-Item -ItemType File -Path VSCode-win32-arm64/tools/.placeholder -Force
+            }
+          } elseif (Test-Path ../VSCode-win32-arm64) {
+            if (-not (Test-Path ../VSCode-win32-arm64/tools)) {
+              Write-Host "Creating tools folder for Inno Setup..."
+              New-Item -ItemType Directory -Path ../VSCode-win32-arm64/tools -Force
+              New-Item -ItemType File -Path ../VSCode-win32-arm64/tools/.placeholder -Force
+            }
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          Write-Host "Downloading Inno Setup..."
+          $url = "https://jrsoftware.org/download.php/is.exe"
+          $output = "$env:TEMP\innosetup.exe"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Write-Host "Installing Inno Setup..."
+          Start-Process -FilePath $output -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+          Write-Host "Inno Setup installed successfully"
+
+      - name: Build User Setup Installer
+        working-directory: ainative-studio
+        run: npm run gulp vscode-win32-arm64-user-setup
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+
+      - name: Build System Setup Installer
+        working-directory: ainative-studio
+        run: npm run gulp vscode-win32-arm64-system-setup
+        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
+
+      - name: Find and rename installer files
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Searching for installer files..."
+
+          $userSetup = ".build\win32-arm64\user-setup\AINativeStudio-UserSetup.exe"
+          $systemSetup = ".build\win32-arm64\system-setup\AINativeStudio-SystemSetup.exe"
+
+          $actualUserSetup = ".build\win32-arm64\user-setup\AINativeStudio.exe"
+          $actualSystemSetup = ".build\win32-arm64\system-setup\AINativeStudio.exe"
+
+          if (Test-Path $actualUserSetup) {
+            Write-Host "Renaming $actualUserSetup to AINativeStudio-UserSetup.exe"
+            Rename-Item -Path $actualUserSetup -NewName "AINativeStudio-UserSetup.exe"
+          }
+
+          if (Test-Path $actualSystemSetup) {
+            Write-Host "Renaming $actualSystemSetup to AINativeStudio-SystemSetup.exe"
+            Rename-Item -Path $actualSystemSetup -NewName "AINativeStudio-SystemSetup.exe"
+          }
+
+          # Verify final installer files exist
+          Write-Host "`nFinal installer check:"
+          if (Test-Path $userSetup) {
+            Write-Host "✅ User installer: $userSetup"
+          } else {
+            Write-Host "❌ User installer missing: $userSetup"
+          }
+
+          if (Test-Path $systemSetup) {
+            Write-Host "✅ System installer: $systemSetup"
+          } else {
+            Write-Host "❌ System installer missing: $systemSetup"
+          }
+
+      # ===== SIGN INSTALLERS =====
+      - name: Import signing certificate for installers
+        if: env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          Write-Host "Importing code signing certificate for installer signing..."
+
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          $certPath = "$env:TEMP\codesign.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+
+          Write-Host "Certificate imported with thumbprint: $($cert.Thumbprint)"
+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+          Remove-Item $certPath -Force
+
+      - name: Sign User Setup installer
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing User Setup installer..."
+          $userSetup = ".build\win32-arm64\user-setup\AINativeStudio-UserSetup.exe"
+
+          if (Test-Path $userSetup) {
+            signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com `
+              /sha1 $env:CERT_THUMBPRINT /d "AINative Studio User Installer (ARM64)" $userSetup
+            Write-Host "✅ User installer signed successfully"
+          } else {
+            Write-Host "⚠️ User installer not found for signing"
+          }
+
+      - name: Sign System Setup installer
+        if: env.CERT_THUMBPRINT != ''
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Signing System Setup installer..."
+          $systemSetup = ".build\win32-arm64\system-setup\AINativeStudio-SystemSetup.exe"
+
+          if (Test-Path $systemSetup) {
+            signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com `
+              /sha1 $env:CERT_THUMBPRINT /d "AINative Studio System Installer (ARM64)" $systemSetup
+            Write-Host "✅ System installer signed successfully"
+          } else {
+            Write-Host "⚠️ System installer not found for signing"
+          }
+
+      # ===== Create ZIP packages to avoid MOTW =====
+      - name: Create ZIP packages for MOTW avoidance
+        working-directory: ainative-studio
+        shell: pwsh
+        run: |
+          Write-Host "Creating ZIP packages to avoid MOTW..."
+
+          $userSetup = ".build\win32-arm64\user-setup\AINativeStudio-UserSetup.exe"
+          $systemSetup = ".build\win32-arm64\system-setup\AINativeStudio-SystemSetup.exe"
+
+          if (Test-Path $userSetup) {
+            Write-Host "Creating ZIP for user installer..."
+            7z a -tzip ".build\win32-arm64\user-setup\AINativeStudio-UserSetup.zip" "$userSetup"
+            Write-Host "✅ Created AINativeStudio-UserSetup.zip"
+          }
+
+          if (Test-Path $systemSetup) {
+            Write-Host "Creating ZIP for system installer..."
+            7z a -tzip ".build\win32-arm64\system-setup\AINativeStudio-SystemSetup.zip" "$systemSetup"
+            Write-Host "✅ Created AINativeStudio-SystemSetup.zip"
+          }
+
+      - name: Upload User Setup Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-win32-arm64-user-setup-signed
+          path: ainative-studio/.build/win32-arm64/user-setup/AINativeStudio-UserSetup.exe
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload User Setup ZIP (MOTW-free)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-win32-arm64-user-setup-zip-signed
+          path: ainative-studio/.build/win32-arm64/user-setup/AINativeStudio-UserSetup.zip
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload System Setup Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-win32-arm64-system-setup-signed
+          path: ainative-studio/.build/win32-arm64/system-setup/AINativeStudio-SystemSetup.exe
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload System Setup ZIP (MOTW-free)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ainative-studio-win32-arm64-system-setup-zip-signed
+          path: ainative-studio/.build/win32-arm64/system-setup/AINativeStudio-SystemSetup.zip
+          if-no-files-found: warn
+          retention-days: 30
