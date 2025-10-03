@@ -140,43 +140,37 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
 
-      - name: Build Microsoft Authentication extension (ARM64 + emulation)
+      - name: Exclude Microsoft Authentication extension from ARM64 build
         working-directory: ainative-studio
         shell: pwsh
         run: |
-          Write-Host "Building Microsoft Authentication extension with ARM64EC/emulation support..."
+          Write-Host "Temporarily excluding Microsoft Authentication extension from ARM64 build..."
+          Write-Host "MSAL native dependencies don't yet support ARM64 natively"
           
-          # Set environment for x64 emulation compatibility
-          $env:npm_config_target_arch = "x64"
-          $env:npm_config_arch = "x64"
-          $env:PROCESSOR_ARCHITECTURE = "AMD64"
-          
-          try {
-            # Build extension allowing x64 dependencies to run via emulation
-            Write-Host "Building with x64 emulation compatibility..."
-            npm run gulp compile-extension:microsoft-authentication
-            Write-Host "✅ Microsoft Authentication extension built successfully (x64 emulation)"
-          } catch {
-            Write-Warning "⚠️ Microsoft Authentication extension failed, trying alternative approach..."
-            
-            # Check if extension directory exists and try to install dependencies manually
-            $msAuthPath = "extensions/microsoft-authentication"
-            if (Test-Path $msAuthPath) {
-              Push-Location $msAuthPath
-              try {
-                Write-Host "Installing dependencies with x64 compatibility..."
-                npm install --target_arch=x64 --force
-                npm run compile
-                Write-Host "✅ Manual build succeeded"
-              } catch {
-                Write-Warning "Manual build also failed, extension will be excluded"
-              } finally {
-                Pop-Location
-              }
-            }
+          # Remove from extensions list in build configuration
+          $extensionsFile = "build/lib/extensions.js"
+          if (Test-Path $extensionsFile) {
+            $content = Get-Content $extensionsFile -Raw
+            $content = $content -replace "'microsoft-authentication',", ""
+            $content = $content -replace ",\s*'microsoft-authentication'", ""
+            $content = $content -replace "'microsoft-authentication'", ""
+            Set-Content $extensionsFile -Value $content
+            Write-Host "✅ Removed microsoft-authentication from build extensions list"
           }
-        env:
-          NODE_OPTIONS: "--max-old-space-size=6144"
+          
+          # Also remove from webpack configuration if present
+          $gulpExtFile = "build/gulpfile.extensions.js"
+          if (Test-Path $gulpExtFile) {
+            $content = Get-Content $gulpExtFile -Raw
+            $content = $content -replace "'extensions/microsoft-authentication/tsconfig\.json',", ""
+            $content = $content -replace ",\s*'extensions/microsoft-authentication/tsconfig\.json'", ""
+            $content = $content -replace "'extensions/microsoft-authentication/tsconfig\.json'", ""
+            Set-Content $gulpExtFile -Value $content
+            Write-Host "✅ Removed microsoft-authentication from gulpfile.extensions.js"
+          }
+          
+          Write-Host "⚠️ Note: Microsoft Authentication will not be available in ARM64 build"
+          Write-Host "Users can still authenticate using other methods or GitHub authentication"
 
       - name: Minify VSCode
         working-directory: ainative-studio
