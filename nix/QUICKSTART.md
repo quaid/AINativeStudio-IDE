@@ -19,6 +19,9 @@
 | Resource | Location |
 |----------|----------|
 | **Task Assignments** | `nix/AGENT_TASKS.md` ← START HERE |
+| **Coding Rules** | `nix/AGENT_CODING_RULES.md` ← MUST FOLLOW |
+| **Product Backlog** | `nix/BACKLOG.md` |
+| **ZeroDB Setup** | `nix/STORE_RULES_IN_ZERODB.md` |
 | **Derivation** | `nix/pkgs/applications/editors/ainative-studio-ide/default.nix` |
 | **Tests** | `nix/tests/` |
 | **Documentation** | `nix/docs/README.nix` |

@@ -420,20 +420,55 @@ Use this checklist for overall project status:
 
 ## Getting Started
 
-### For AI DevOps Agent
-Start with M0.1 - generate hashes first, this unblocks the build agent.
+### STEP 0: Initialize ZeroDB Memory (ALL AGENTS)
+**Execute FIRST before any work**: Run all commands in `STORE_RULES_IN_ZERODB.md` to load:
+- Agent coding rules into shared memory
+- Project context and success criteria
+- Nix-specific patterns and commands
+- Collaboration protocols
 
-### For AI Build Agent
-Wait for M0.1 completion, then begin M1.1 with the generated hashes.
+Verify with: `zerodb_search_memory({ query: "chain of thought reasoning", session_id: "nixpkgs-packaging" })`
 
-### For AI QA Agent
-Prepare test infrastructure while build is in progress, execute tests when M1 completes.
+### STEP 1: Read Mandatory Documents
+1. **`AGENT_CODING_RULES.md`** - Your behavioral rulebook
+2. **`BACKLOG.md`** - Understand user stories and acceptance criteria
+3. **PRD** (`~/Documents/Projects/ainative-studio/nixpkgs-PRD.md`) - Project requirements
 
-### For AI Compliance Agent
-Review PRD and nixpkgs guidelines, prepare lint configuration.
+### STEP 2: Agent-Specific Startup
 
-### For AI Maintainer Agent
-Study nixpkgs PR process and OfBorg documentation.
+#### For AI DevOps Agent
+**Chain-of-Thought Required** (Rule 2.1):
+1. Clarify hash generation requirements
+2. Weigh alternative approaches (nix-prefetch-github vs manual)
+3. Consider edge cases (version tags, release naming)
+4. Document chosen implementation plan
+
+**Then**: Start with M0.1 - generate hashes first, this unblocks the build agent.
+
+#### For AI Build Agent
+**Wait for M0.1 completion**, then:
+1. **Apply Rule 2.1**: Reason about derivation structure before coding
+2. **Apply Rule 3.1**: Generate failing test BEFORE implementing derivation
+3. Begin M1.1 with the generated hashes
+
+#### For AI QA Agent
+**Preparation Phase**:
+1. Review existing test scripts (`nix/tests/`)
+2. **Apply Rule 3.2**: Plan integration test strategy
+3. Set up test environment (Xvfb for headless)
+
+**Execute when M1 completes**
+
+#### For AI Compliance Agent
+1. Install lint tools: `nix-shell -p deadnix statix nixpkgs-fmt`
+2. Review nixpkgs style guide
+3. **Apply Rule 5.3**: Prepare CI lint configuration
+4. **Wait for M2**: Execute compliance checks when tests pass
+
+#### For AI Maintainer Agent
+1. Study nixpkgs PR process and OfBorg documentation
+2. **Apply Rule 1.4**: Prepare release checklist
+3. **Wait for M5**: Prepare PR when compliance complete
 
 ---
 
