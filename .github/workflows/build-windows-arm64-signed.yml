@@ -4,13 +4,17 @@ on:
   workflow_dispatch:
   workflow_call:
   push:
-    branches: 
+    branches:
       - main
+    branches-ignore:
+      - 'feature/nixpkgs-*'  # Nixpkgs packaging excludes Windows builds (out of scope)
     tags:
       - 'v*'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'nix/**'  # Skip Windows builds for nixpkgs packaging work
 
 jobs:
   build-windows-arm64:

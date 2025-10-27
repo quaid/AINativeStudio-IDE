@@ -3,6 +3,9 @@ name: Windows ARM64 Build & Package (With Icon Fix)
 on:
   workflow_dispatch:
   workflow_call:
+  push:
+    branches-ignore:
+      - 'feature/nixpkgs-*'  # Nixpkgs packaging excludes Windows builds (out of scope)
 
 jobs:
   build-windows:
