@@ -1,0 +1,93 @@
+=== M0.1: Hash Generation Results ===
+
+Date: 2025-10-27
+Agent: AI DevOps Agent
+Milestone: M0.1 - Hash Generation
+Status: ✅ COMPLETE
+
+=== Generated Hashes ===
+
+Source Hash (fetchFromGitHub):
+  sha256-Au2UcHgJ9N1o1fnZZOb7IuZB/4HPlk/MLPZIWpkLgAQ=
+
+NPM Dependencies Hash (buildNpmPackage):
+  sha256-ElU9TiSlQE0B0jXrwanGeTZ89AAuxwzE9sjQlEL862M=
+
+=== Verification ===
+
+✅ Tag v1.1.0 verified (commit: 5b89e1873abcbc7eb48ff04384686a457d251cc9)
+✅ Source hash generated via nix-prefetch-url
+✅ NPM hash extracted from buildNpmPackage error output
+✅ Both hashes updated in default.nix
+✅ Hashes validated (npm-deps derivation completed successfully)
+
+=== Build Status ===
+
+⚠️  Full build fails due to missing build dependencies:
+- kerberos package requires gssapi/gssapi.h
+- This is EXPECTED for M0.1 - build issues addressed in M1
+
+Hash generation phase COMPLETE - M1.1 is now UNBLOCKED.
+
+=== Additional Fixes Applied ===
+
+1. Fixed source hash format (removed duplicate "sha256-" prefix)
+2. Fixed desktop file categories (removed non-standard "AI" category)
+3. Added postPatch to copy package-lock.json for npm-deps derivation
+4. Verified subdirectory structure (ainative-studio/)
+
+=== Next Steps ===
+
+1. Commit these changes to feature branch
+2. Initialize ZeroDB memory with M0.1 results
+3. Deploy AI Build Agent for M1.1 (Core Derivation)
+4. M1.1 will fix build dependencies:
+   - Add krb5 to buildInputs for gssapi headers
+   - Fix any other compilation issues
+   - Complete desktop integration
+
+=== Commands Used ===
+
+```bash
+# Source hash generation
+nix-prefetch-url --unpack "https://github.com/AINative-Studio/AINativeStudio-IDE/archive/refs/tags/v1.1.0.tar.gz"
+
+# NPM hash extraction
+nix-build -E 'with import <nixpkgs> {}; callPackage ./default.nix {}'
+# (extracted from hash mismatch error)
+```
+
+=== File Modifications ===
+
+Modified: nix/pkgs/applications/editors/ainative-studio-ide/default.nix
+- Line 24: hash = "sha256-Au2UcHgJ9N1o1fnZZOb7IuZB/4HPlk/MLPZIWpkLgAQ="
+- Line 51: npmDepsHash = "sha256-ElU9TiSlQE0B0jXrwanGeTZ89AAuxwzE9sjQlEL862M="
+- Line 35: categories = [ "Development" "IDE" "TextEditor" "Utility" ]
+- Lines 73-78: Added postPatch to copy package files
+
+=== Coding Rules Applied ===
+
+✅ Rule 2.1: Chain-of-thought reasoning (see M0.1-CHAIN-OF-THOUGHT.md)
+✅ Rule 2.2: Requirements clarification (analyzed tag format, subdirectory structure)
+✅ Rule 2.3: Alternative approaches (nix-prefetch-github vs nix-prefetch-url)
+✅ Rule 7: Self-validation (verified hashes, documented fixes)
+
+=== Session Information ===
+
+Session ID: nixpkgs-packaging
+Repository: github.com/quaid/AINativeStudio-IDE (fork)
+Branch: feature/nixpkgs-packaging
+Remote: origin (quaid/AINativeStudio-IDE)
+
+=== M0.1 Success Criteria ===
+
+- [x] Chain-of-thought reasoning documented
+- [x] Automated script created
+- [x] Manual instructions provided
+- [x] Hashes generated
+- [x] default.nix updated
+- [x] npm-deps derivation validated
+- [x] Results documented
+- [ ] ZeroDB updated (pending commit)
+
+=== End of M0.1 Results ===

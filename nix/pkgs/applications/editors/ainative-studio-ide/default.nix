@@ -21,7 +21,7 @@ let
     owner = "AINative-Studio";
     repo = "AINativeStudio-IDE";
     rev = "v${version}";
-    hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # TODO: Replace with actual hash
+    hash = "sha256-Au2UcHgJ9N1o1fnZZOb7IuZB/4HPlk/MLPZIWpkLgAQ="; # Generated via nix-prefetch-url
   };
 
   # Desktop entry configuration
@@ -32,7 +32,7 @@ let
     desktopName = "AI Native Studio IDE";
     genericName = "AI-Native Code Editor";
     comment = "AI-Native IDE with agentic development features";
-    categories = [ "Development" "IDE" "AI" "TextEditor" ];
+    categories = [ "Development" "IDE" "TextEditor" "Utility" ];
     startupNotify = true;
     mimeTypes = [
       "text/plain"
@@ -47,8 +47,8 @@ buildNpmPackage rec {
   # Build from the ainative-studio subdirectory
   npmRoot = "ainative-studio";
 
-  # npm dependencies hash - needs to be generated
-  npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # TODO: Replace with actual hash
+  # npm dependencies hash - generated via M0.1
+  npmDepsHash = "sha256-ElU9TiSlQE0B0jXrwanGeTZ89AAuxwzE9sjQlEL862M=";
 
   nativeBuildInputs = [
     makeWrapper
@@ -68,6 +68,14 @@ buildNpmPackage rec {
 
   # Increase Node memory for large TypeScript build
   NODE_OPTIONS = "--max-old-space-size=8192";
+
+  # Copy package-lock.json to root for npm-deps derivation
+  postPatch = ''
+    # buildNpmPackage's npm-deps derivation looks for package-lock.json in root
+    # but our actual package.json is in ainative-studio/
+    cp ainative-studio/package-lock.json ./package-lock.json
+    cp ainative-studio/package.json ./package.json
+  '';
 
   # Build phase
   buildPhase = ''
